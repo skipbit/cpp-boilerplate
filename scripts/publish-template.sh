@@ -43,6 +43,25 @@ for f in "${shared[@]}"; do
 done
 
 cd "$work"
+
+# Build what was assembled, not what it was assembled from. A template that
+# only builds inside the monorepo is exactly the failure this script can
+# introduce: a missing shared file shows up here and nowhere else.
+if command -v cmake > /dev/null 2>&1; then
+    echo "Verifying the assembled tree..."
+    verify="$work/.verify"
+    cmake -S . -B "$verify" -G Ninja -DCMAKE_BUILD_TYPE=Release > /dev/null \
+        || die "the assembled tree does not configure"
+    cmake --build "$verify" > /dev/null \
+        || die "the assembled tree does not build"
+    ctest --test-dir "$verify" --output-on-failure > /dev/null \
+        || die "the assembled tree does not pass its tests"
+    rm -rf "$verify"
+    echo "  configures, builds, tests."
+else
+    echo "warning: cmake not found; publishing without verifying" >&2
+fi
+
 git init -q -b main
 git config user.name "Yuma Endo"
 git config user.email "endo@skipbit.jp"
