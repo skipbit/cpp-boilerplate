@@ -1,0 +1,4 @@
+add_executable(basic basic.cpp)
+target_link_libraries(basic PRIVATE mylib::mylib)
+cppbp_set_warnings(basic PRIVATE)
+cppbp_set_sanitizers(basic PRIVATE)
