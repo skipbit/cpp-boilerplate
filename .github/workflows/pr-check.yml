@@ -1,0 +1,13 @@
+# Guards the main branch against changes that do not build, test or lint.
+name: pr check
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    uses: ./.github/workflows/build-and-test.yml

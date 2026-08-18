@@ -1,0 +1,13 @@
+# Guards the claim that main is always in a state someone can start from.
+name: main check
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    uses: ./.github/workflows/build-and-test.yml

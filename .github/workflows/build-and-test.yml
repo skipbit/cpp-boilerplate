@@ -1,0 +1,132 @@
+# Reusable: everything that has to hold before a change is allowed in.
+#
+# Two kinds of job, because there are two different questions:
+#
+#   native  - does this build with what people actually have? Ubuntu's own
+#             compilers and CMake, no extra repositories. If this is green,
+#             "git clone && cmake" works on a stock machine.
+#   pinned  - does this build in a fixed environment? Versions are frozen in
+#             .devcontainer/Dockerfile, which the dev container also uses, so a
+#             failure here is a real change and never a surprise upgrade.
+name: build and test
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  native:
+    name: ${{ matrix.os }} · ${{ matrix.cxx }} · ${{ matrix.stdlib }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # ubuntu-26.04 runners are in preview at the time of writing.
+          - { os: ubuntu-24.04, cc: gcc, cxx: g++, stdlib: libstdc++ }
+          - { os: ubuntu-24.04, cc: clang, cxx: clang++, stdlib: libstdc++ }
+          - { os: ubuntu-24.04, cc: clang, cxx: clang++, stdlib: libc++ }
+          - { os: ubuntu-26.04, cc: gcc, cxx: g++, stdlib: libstdc++ }
+          - { os: ubuntu-26.04, cc: clang, cxx: clang++, stdlib: libstdc++ }
+          - { os: ubuntu-26.04, cc: clang, cxx: clang++, stdlib: libc++ }
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install ninja, and libc++ where the matrix asks for it
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build
+          if [ "${{ matrix.stdlib }}" = "libc++" ]; then
+            sudo apt-get install -y --no-install-recommends libc++-dev libc++abi-dev
+          fi
+
+      - name: Record what this job is actually building with
+        run: |
+          cmake --version | head -1
+          ${{ matrix.cxx }} --version | head -1
+
+      - name: Configure
+        run: |
+          flags=""
+          if [ "${{ matrix.stdlib }}" = "libc++" ]; then flags="-stdlib=libc++"; fi
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER=${{ matrix.cc }} \
+            -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
+            -DCMAKE_CXX_FLAGS="$flags" \
+            -DCPPBP_WARNINGS_AS_ERRORS=ON
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  pinned:
+    name: pinned toolchain (with SBOM)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build the pinned image
+        uses: docker/build-push-action@v6
+        with:
+          context: .devcontainer
+          load: true
+          tags: cpp-boilerplate-toolchain:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build, test, and write an SBOM
+        run: |
+          docker run --rm -v "$PWD":/src:ro cpp-boilerplate-toolchain:ci bash -euxc '
+            cmake --version | head -1
+            cmake -S /src -B /tmp/build -G Ninja \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DCPPBP_WARNINGS_AS_ERRORS=ON \
+              -DMYLIB_GENERATE_SBOM=ON
+            cmake --build /tmp/build
+            ctest --test-dir /tmp/build --output-on-failure
+            cmake --install /tmp/build --prefix /tmp/prefix
+            test -s /tmp/prefix/lib/sbom/mylib/mylib.spdx.json
+          '
+
+  static-analysis:
+    name: clang-tidy and clang-format
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build the pinned image
+        uses: docker/build-push-action@v6
+        with:
+          context: .devcontainer
+          load: true
+          tags: cpp-boilerplate-toolchain:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # clang-tidy runs in the compile step, so a violation fails the build.
+      # Fetched dependencies are excluded: their warnings are not ours to fix.
+      - name: Run clang-tidy as part of the build
+        run: |
+          docker run --rm -v "$PWD":/src:ro cpp-boilerplate-toolchain:ci bash -euxc '
+            cmake -S /src -B /tmp/tidy -G Ninja \
+              -DCMAKE_BUILD_TYPE=Debug \
+              -DCPPBP_ENABLE_CLANG_TIDY=ON \
+              -DCPPBP_BUILD_TESTING=OFF
+            cmake --build /tmp/tidy
+          '
+
+      - name: Check formatting
+        run: |
+          docker run --rm -v "$PWD":/src:ro cpp-boilerplate-toolchain:ci bash -euxc '
+            cd /src
+            find templates -name "*.cpp" -o -name "*.hpp" | xargs clang-format --dry-run --Werror
+          '
