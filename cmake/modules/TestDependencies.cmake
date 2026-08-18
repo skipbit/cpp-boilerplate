@@ -4,7 +4,7 @@
 
 include(FetchContent)
 
-set(CPPBP_GOOGLETEST_TAG "v1.15.2" CACHE STRING "GoogleTest git tag to build against")
+set(CPPBP_GOOGLETEST_TAG "v1.18.0" CACHE STRING "GoogleTest git tag to build against")
 
 FetchContent_Declare(
     googletest
