@@ -1,0 +1,20 @@
+{
+  "name": "cpp-boilerplate",
+  "build": { "dockerfile": "Dockerfile" },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.cpptools",
+        "ms-vscode.cmake-tools",
+        "llvm-vs-code-extensions.vscode-clangd"
+      ],
+      "settings": {
+        "cmake.configureOnOpen": false
+      }
+    }
+  },
+  "runArgs": [
+    "--volume=/tmp/.X11-unix:/tmp/.X11-unix",
+    "--env=DISPLAY"
+  ]
+}
