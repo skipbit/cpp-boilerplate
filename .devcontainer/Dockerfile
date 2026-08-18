@@ -1,9 +1,24 @@
-# The pinned toolchain. CI builds against this image and the dev container uses
-# the same one, so "works on my machine" and "works in CI" are the same claim.
+# The pinned toolchain shared by every template. CI builds against this image
+# and the dev container uses the same one, so "works on my machine" and "works
+# in CI" are the same claim.
 #
 # Everything is pinned by version. Ubuntu's own archive is too old for what this
 # project wants to verify (24.04 ships CMake 3.28 and GCC 13), so CMake comes
 # from Kitware's repository and Clang from LLVM's.
+#
+# Only what every template needs lives here. Dependencies fall into three kinds,
+# and they belong in three different places:
+#
+#   toolchain          compilers, CMake, ninja, clang-tidy    -> this file
+#   system libraries   Qt, TreeFrog, OpenGL                   -> templates/<name>/.devcontainer/
+#   source dependencies  CLI11, GoogleTest                    -> FetchContent, no image at all
+#
+# Putting a template's system libraries here would mean editing a file every
+# template shares - invalidating its cache and mixing unrelated changes - every
+# time a new template arrives. A template that needs Qt builds FROM this image
+# and adds Qt in its own directory, so the two update independently and the
+# environment travels with the template when it is published.
+
 FROM ubuntu:24.04
 
 # Bump these deliberately, in a commit of their own, so that a toolchain change

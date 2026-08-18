@@ -103,6 +103,41 @@ templates/lib/     the library template
 one copy; the published templates get a real directory in the same place, so
 their `CMakeLists.txt` needs no changes either way.
 
+## How dependencies are pinned
+
+Three kinds, three places. Putting them all in one file would mean every
+template shares a cache and a diff with every other one.
+
+| kind | examples | where it lives | kept current by |
+| --- | --- | --- | --- |
+| toolchain | CMake, GCC, Clang, ninja | `.devcontainer/Dockerfile` | `dependency-freshness`, weekly |
+| system libraries | Qt, OpenGL | `templates/<name>/.devcontainer/` | the template that needs them |
+| source dependencies | GoogleTest, CLI11 | `FetchContent` in `cmake/modules/` | `dependency-freshness`, weekly |
+| actions, base images | `actions/checkout`, `ubuntu:24.04` | workflows, `FROM` lines | Dependabot |
+
+Dependabot reads the last row and nothing else: it does not know what a
+`FetchContent` tag is, and it cannot see a version pinned inside a `RUN` layer.
+The `dependency-freshness` job covers the rest by asking the upstream
+repositories directly and opening a single, updated issue when something is
+behind.
+
+## Adding a template
+
+A template is a directory under `templates/` that builds on its own:
+
+1. `templates/<name>/CMakeLists.txt` with its own `project()` call, so the
+   published repository builds without a parent.
+2. `ln -s ../../../cmake/modules templates/<name>/cmake/modules`, so it uses
+   the shared modules rather than a copy of them.
+3. An `option()` and an `add_subdirectory()` in the top-level `CMakeLists.txt`.
+4. If it needs system libraries, `templates/<name>/.devcontainer/Dockerfile`
+   building `FROM` the shared toolchain image. The environment then travels
+   with the template when it is published.
+
+Application templates consume the library template through `find_package`
+rather than linking it directly in the same build tree. That is deliberate: it
+is the only arrangement in which a broken install rule fails a build.
+
 ## Contributing
 
 Issues and pull requests belong here, in this repository. The per-template
