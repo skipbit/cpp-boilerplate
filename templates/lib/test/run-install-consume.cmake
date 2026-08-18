@@ -18,9 +18,18 @@ endfunction()
 run_step("installing the library"
     "${CMAKE_COMMAND}" --install "${LIBRARY_BUILD_DIR}" --prefix "${prefix}" --config "${BUILD_TYPE}")
 
+# The consumer is configured with the same compiler and flags as the library.
+# Without this it would pick the system default, and a library built with
+# libc++ would fail to link against a consumer built with libstdc++ - an ABI
+# mismatch reported as an undefined reference, which says nothing about whether
+# the package itself is correct.
 run_step("configuring the consumer"
     "${CMAKE_COMMAND}" -S "${SOURCE_DIR}" -B "${build}" -G "${GENERATOR}"
-    "-DCMAKE_PREFIX_PATH=${prefix}" "-DCMAKE_BUILD_TYPE=${BUILD_TYPE}")
+    "-DCMAKE_PREFIX_PATH=${prefix}"
+    "-DCMAKE_BUILD_TYPE=${BUILD_TYPE}"
+    "-DCMAKE_C_COMPILER=${C_COMPILER}"
+    "-DCMAKE_CXX_COMPILER=${CXX_COMPILER}"
+    "-DCMAKE_CXX_FLAGS=${CXX_FLAGS}")
 
 run_step("building the consumer"
     "${CMAKE_COMMAND}" --build "${build}" --config "${BUILD_TYPE}")
