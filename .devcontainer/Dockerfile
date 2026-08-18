@@ -19,7 +19,7 @@
 # and adds Qt in its own directory, so the two update independently and the
 # environment travels with the template when it is published.
 
-FROM ubuntu:24.04
+FROM ubuntu:26.04
 
 # Bump these deliberately, in a commit of their own, so that a toolchain change
 # is visible in the history instead of arriving with an unrelated build.
