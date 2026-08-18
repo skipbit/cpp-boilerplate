@@ -19,4 +19,4 @@ namespace mylib::text {
 /// `squeeze("  a \t\n b  ")` returns `"a b"`.
 [[nodiscard]] MYLIB_EXPORT auto squeeze(std::string_view input) -> std::string;
 
-} // namespace mylib::text
+}  // namespace mylib::text

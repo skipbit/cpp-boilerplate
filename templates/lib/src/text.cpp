@@ -1,6 +1,7 @@
 #include "mylib/text.hpp"
 
-#include <cstddef>
+#include <string>
+#include <string_view>
 
 #include "detail/character.hpp"
 
@@ -14,7 +15,7 @@ auto squeeze(std::string_view input) -> std::string
     bool pending_space = false;
     for (const char c : input) {
         if (detail::is_space(c)) {
-            pending_space = !result.empty();
+            pending_space = ! result.empty();
             continue;
         }
         if (pending_space) {
@@ -27,4 +28,4 @@ auto squeeze(std::string_view input) -> std::string
     return result;
 }
 
-} // namespace mylib::text
+}  // namespace mylib::text

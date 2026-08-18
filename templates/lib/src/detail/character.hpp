@@ -14,4 +14,4 @@ namespace mylib::detail {
     return c == ' ' || c == '\t' || c == '\n' || c == '\v' || c == '\f' || c == '\r';
 }
 
-} // namespace mylib::detail
+}  // namespace mylib::detail

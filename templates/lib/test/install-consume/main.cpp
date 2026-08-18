@@ -1,4 +1,4 @@
-#include <cstdio>
+#include <iostream>
 #include <string>
 
 #include <mylib/text.hpp>
@@ -9,15 +9,15 @@ int main()
 {
     const std::string squeezed = mylib::text::squeeze("  a \t\n b  ");
     if (squeezed != "a b") {
-        std::fprintf(stderr, "squeeze returned \"%s\"\n", squeezed.c_str());
+        std::cerr << "squeeze returned \"" << squeezed << "\"\n";
         return 1;
     }
 
     if (std::string(mylib::version()).empty()) {
-        std::fprintf(stderr, "version() is empty\n");
+        std::cerr << "version() is empty\n";
         return 1;
     }
 
-    std::printf("consumed mylib %s\n", mylib::version());
+    std::cout << "consumed mylib " << mylib::version() << '\n';
     return 0;
 }
