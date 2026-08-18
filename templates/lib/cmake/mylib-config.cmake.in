@@ -1,0 +1,11 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+# Declare your public dependencies here with find_dependency(), not
+# find_package(): a consumer of this package must be able to resolve them
+# transitively without repeating them.
+
+include("${CMAKE_CURRENT_LIST_DIR}/mylib-targets.cmake")
+
+check_required_components(mylib)

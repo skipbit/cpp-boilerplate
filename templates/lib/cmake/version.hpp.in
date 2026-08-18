@@ -1,0 +1,21 @@
+#pragma once
+
+// Generated from cmake/version.hpp.in. Do not edit.
+// The version is declared once, in project(... VERSION ...), and flows from
+// there into this header, into the installed package config, and into the
+// pkg-config file. Bumping it in one place is the whole point.
+
+#define MYLIB_VERSION_MAJOR @PROJECT_VERSION_MAJOR@
+#define MYLIB_VERSION_MINOR @PROJECT_VERSION_MINOR@
+#define MYLIB_VERSION_PATCH @PROJECT_VERSION_PATCH@
+#define MYLIB_VERSION_STRING "@PROJECT_VERSION@"
+
+namespace mylib {
+
+/// The version this library was built as, as a literal string.
+inline constexpr const char* version() noexcept
+{
+    return MYLIB_VERSION_STRING;
+}
+
+} // namespace mylib
