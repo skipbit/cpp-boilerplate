@@ -27,15 +27,15 @@ configuration and the CI live here once instead of four times.
 ```sh
 git clone https://github.com/skipbit/cpp-boilerplate
 cd cpp-boilerplate
-cmake --preset dev
-cmake --build --preset dev
-ctest --preset dev
+cmake --preset debug
+cmake --build --preset debug
+ctest --preset debug
 ```
 
 Nothing else has to be installed first: CMake, a compiler and Ninja are enough,
 and the test framework is fetched during configuration.
 
-Presets: `dev` (debug, warnings as errors), `release`, `asan`, `tsan`, `tidy`.
+Presets: `debug` (warnings as errors), `release`, `asan`, `tsan`, `tidy`.
 
 ## What is wired in
 
