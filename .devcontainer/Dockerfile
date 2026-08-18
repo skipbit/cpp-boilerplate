@@ -23,6 +23,12 @@ FROM ubuntu:24.04
 
 # Bump these deliberately, in a commit of their own, so that a toolchain change
 # is visible in the history instead of arriving with an unrelated build.
+#
+# UBUNTU_CODENAME and CMAKE_VERSION both name the Ubuntu release, so changing the
+# base image means changing both. That is the pin doing its job rather than a
+# footgun: a silently mismatched archive would install packages built for another
+# release.
+ARG UBUNTU_CODENAME=noble
 ARG CMAKE_VERSION=4.4.2-0kitware1ubuntu24.04.1
 ARG CLANG_VERSION=21
 ARG GCC_VERSION=14
@@ -33,11 +39,11 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates gnupg wget \
  && wget -qO- https://apt.kitware.com/keys/kitware-archive-latest.asc \
       | gpg --dearmor -o /usr/share/keyrings/kitware-archive-keyring.gpg \
- && echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ noble main" \
+ && echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ ${UBUNTU_CODENAME} main" \
       > /etc/apt/sources.list.d/kitware.list \
  && wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key \
       | gpg --dearmor -o /usr/share/keyrings/llvm-archive-keyring.gpg \
- && echo "deb [signed-by=/usr/share/keyrings/llvm-archive-keyring.gpg] http://apt.llvm.org/noble/ llvm-toolchain-noble-${CLANG_VERSION} main" \
+ && echo "deb [signed-by=/usr/share/keyrings/llvm-archive-keyring.gpg] http://apt.llvm.org/${UBUNTU_CODENAME}/ llvm-toolchain-${UBUNTU_CODENAME}-${CLANG_VERSION} main" \
       > /etc/apt/sources.list.d/llvm.list \
  && apt-get update \
  && apt-get install -y --no-install-recommends \
