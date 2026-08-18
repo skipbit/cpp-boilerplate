@@ -32,7 +32,7 @@ jobs:
           - { os: ubuntu-26.04, cc: clang, cxx: clang++, stdlib: libstdc++ }
           - { os: ubuntu-26.04, cc: clang, cxx: clang++, stdlib: libc++ }
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Install ninja, and libc++ where the matrix asks for it
         run: |
@@ -68,12 +68,12 @@ jobs:
     name: pinned toolchain (with SBOM)
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       - name: Build the pinned image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .devcontainer
           load: true
@@ -99,12 +99,12 @@ jobs:
     name: clang-tidy and clang-format
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       - name: Build the pinned image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .devcontainer
           load: true
@@ -119,6 +119,8 @@ jobs:
           docker run --rm -v "$PWD":/src:ro cpp-boilerplate-toolchain:ci bash -euxc '
             cmake -S /src -B /tmp/tidy -G Ninja \
               -DCMAKE_BUILD_TYPE=Debug \
+              -DCMAKE_C_COMPILER=clang \
+              -DCMAKE_CXX_COMPILER=clang++ \
               -DCPPBP_ENABLE_CLANG_TIDY=ON \
               -DCPPBP_BUILD_TESTING=OFF
             cmake --build /tmp/tidy
