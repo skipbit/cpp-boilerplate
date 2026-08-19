@@ -113,7 +113,11 @@ jobs:
           cache-to: type=gha,mode=max
 
       # clang-tidy runs in the compile step, so a violation fails the build.
-      # Fetched dependencies are excluded: their warnings are not ours to fix.
+      # Clang, not GCC: clang-tidy reads this build's flags, and GCC's own
+      # warning names would fail every file as unknown warning options.
+      # Fetched dependencies are not analysed - the module attaches clang-tidy
+      # per target - so the tests are built and checked here like everything
+      # else.
       - name: Run clang-tidy as part of the build
         run: |
           docker run --rm -v "$PWD":/src:ro cpp-boilerplate-toolchain:ci bash -euxc '
@@ -121,8 +125,7 @@ jobs:
               -DCMAKE_BUILD_TYPE=Debug \
               -DCMAKE_C_COMPILER=clang \
               -DCMAKE_CXX_COMPILER=clang++ \
-              -DCPPBP_ENABLE_CLANG_TIDY=ON \
-              -DCPPBP_BUILD_TESTING=OFF
+              -DCPPBP_ENABLE_CLANG_TIDY=ON
             cmake --build /tmp/tidy
           '
 

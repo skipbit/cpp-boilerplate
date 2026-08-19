@@ -5,6 +5,7 @@ add_executable(mylib_test text_test.cpp)
 target_link_libraries(mylib_test PRIVATE mylib::mylib GTest::gtest_main)
 cppbp_set_warnings(mylib_test PRIVATE)
 cppbp_set_sanitizers(mylib_test PRIVATE)
+cppbp_enable_clang_tidy(mylib_test)
 
 gtest_discover_tests(mylib_test)
 

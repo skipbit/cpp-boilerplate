@@ -47,7 +47,11 @@
       "name": "tidy",
       "inherits": "debug",
       "displayName": "Debug build that runs clang-tidy as it compiles",
-      "cacheVariables": { "CPPBP_ENABLE_CLANG_TIDY": "ON" }
+      "cacheVariables": {
+        "CPPBP_ENABLE_CLANG_TIDY": "ON",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++"
+      }
     }
   ],
   "buildPresets": [

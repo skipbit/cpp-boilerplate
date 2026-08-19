@@ -68,6 +68,7 @@ target_compile_features(mylib PUBLIC cxx_std_23)
 
 cppbp_set_warnings(mylib PRIVATE)
 cppbp_set_sanitizers(mylib PRIVATE)
+cppbp_enable_clang_tidy(mylib)
 
 if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(mylib PUBLIC MYLIB_STATIC_DEFINE)
