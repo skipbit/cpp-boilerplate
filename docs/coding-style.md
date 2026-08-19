@@ -117,8 +117,9 @@ Some rules are not in either file, because the layout carries them:
 
 - **Public headers declare, `src/` implements.** Anything under `src/` is never
   installed, so changing it is never a breaking change for a consumer.
-  `HeaderFilterRegex` analyses `src/` headers directly; public headers are
-  analysed through the translation units that include them.
+  `HeaderFilterRegex` covers `include/` and `src/` both: clang-tidy reports a
+  finding in a header only when the header itself matches that expression, so a
+  public header outside it is a public header nothing checks.
 - **One feature is one header, one implementation, one test.** There is no
   umbrella header, because a header that includes everything becomes a header
   that everything depends on.

@@ -148,10 +148,12 @@ CheckOptions:
   - key: misc-definitions-in-headers.ImplementationFileExtensions
     value: 'c,cc,cpp,cxx'
 
-# Which headers get analysed. Only the ones under src/: public headers are
-# checked through the translation units that include them, and everything a
-# dependency dragged in is not this project's problem.
-HeaderFilterRegex: '^.*/src/.*\.(h|hpp)$'
+# Which headers get analysed. include/ and src/, and nothing else. clang-tidy
+# reports a finding in a header only when that header matches this expression,
+# so a public header left out of it is a public header nothing checks - which is
+# what src/ alone meant here until it was measured. Generated headers and
+# fetched dependencies live outside both directories and stay out.
+HeaderFilterRegex: '^.*/(include|src)/.*\.(h|hpp)$'
 
 # Fixes are formatted with this project's .clang-format rather than clang-tidy's
 # own idea of layout.
