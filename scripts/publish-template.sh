@@ -18,7 +18,8 @@
 
 set -euo pipefail
 
-readonly owner="skipbit"
+# The account the template repositories live under. Override to publish elsewhere.
+readonly owner="${CPPBP_OWNER:-skipbit}"
 
 # Copied to the same path. A template that ships its own copy keeps it.
 readonly shared=(
@@ -103,10 +104,11 @@ else
 fi
 
 git init -q -b main
-# Set explicitly: this tree is assembled in a temporary directory, where any
-# conditional include in the global configuration does not apply.
-git config user.name "Yuma Endo"
-git config user.email "endo@skipbit.jp"
+# The tree is assembled in a temporary directory, so neither this repository's
+# local configuration nor a conditional include in the global one reaches it.
+# Carry over whoever is publishing instead of naming a person here.
+git config user.name "$(git -C "$root" config user.name)"
+git config user.email "$(git -C "$root" config user.email)"
 git add -A
 git commit -q -m "Publish the ${name} template
 
