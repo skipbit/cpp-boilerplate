@@ -7,7 +7,8 @@
 A C++ library that builds, tests, installs and packages itself from the first
 commit. Rename it and start writing.
 
-Generated from [cpp-boilerplate](https://github.com/skipbit/cpp-boilerplate).
+Generated from [cpp-boilerplate](https://github.com/skipbit/cpp-boilerplate),
+where the template itself is developed and where issues about it belong.
 
 There is no build badge here on purpose. **Use this template** copies this file
 into your repository unchanged, and a workflow badge names the repository it
