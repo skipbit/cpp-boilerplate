@@ -13,14 +13,19 @@ permissions:
 
 jobs:
   sanitize:
-    name: ${{ matrix.preset }}
+    # Named for what the job checks rather than for the preset it runs. The
+    # preset keeps its short name - it is what somebody types - but a run list
+    # is read, and every other job here says what it did in words.
+    name: ${{ matrix.checks }}
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       # address and thread cannot be combined, which is why they are separate
       # jobs rather than one build with everything switched on.
       matrix:
-        preset: [asan, tsan]
+        include:
+          - { preset: asan, checks: address and undefined behaviour }
+          - { preset: tsan, checks: data races }
     steps:
       - uses: actions/checkout@v7
 
