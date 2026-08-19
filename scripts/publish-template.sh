@@ -29,7 +29,7 @@ readonly shared=(
     .devcontainer
     .editorconfig
     .githooks
-    .github/actionlint.yaml
+    .github/actionlint.yml
     .github/dependabot.yml
     .gitignore
     LICENSE

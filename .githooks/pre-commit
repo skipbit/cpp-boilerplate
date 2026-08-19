@@ -75,7 +75,7 @@ if [ ${#translation_units[@]} -gt 0 ] && command -v clang-tidy > /dev/null 2>&1;
 fi
 
 # --- workflows ------------------------------------------------------------
-# Checked on disk: actionlint resolves .github/actionlint.yaml relative to the
+# Checked on disk: actionlint resolves .github/actionlint.yml relative to the
 # working tree, and shellcheck follows the same convention for the scripts.
 mapfile -t workflows < <(matching '.github/workflows/*.yml'; matching 'ci/*.yml')
 if [ ${#workflows[@]} -gt 0 ]; then
