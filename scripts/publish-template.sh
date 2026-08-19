@@ -25,6 +25,7 @@ readonly owner="${CPPBP_OWNER:-skipbit}"
 readonly shared=(
     .clang-format
     .clang-tidy
+    .clangd
     .devcontainer
     .editorconfig
     .githooks

@@ -8,6 +8,17 @@ project(mylib
     HOMEPAGE_URL "https://github.com/skipbit/cpp-boilerplate"
     LANGUAGES CXX)
 
+# clangd, clang-tidy and everything else that reads the code without building it
+# need the compile database, and its absence is the usual reason a fresh clone
+# has no working "go to definition". The presets ask for it; this covers a build
+# configured without them, which is what most people type first. An explicit
+# -DCMAKE_EXPORT_COMPILE_COMMANDS still wins - and it is tested for emptiness,
+# not for DEFINED, because CMake creates the cache entry itself and leaves it
+# empty, so DEFINED is true even when nobody has asked for anything.
+if(PROJECT_IS_TOP_LEVEL AND CMAKE_EXPORT_COMPILE_COMMANDS STREQUAL "")
+    set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+endif()
+
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/modules")
 
 include(GNUInstallDirs)
