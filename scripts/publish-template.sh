@@ -31,6 +31,8 @@ readonly shared=(
     .github/dependabot.yml
     .gitignore
     LICENSE
+    docs
+    scripts/check-tidy-rationale.sh
     scripts/install-hooks.sh
     scripts/release.sh
 )

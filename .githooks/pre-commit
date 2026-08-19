@@ -87,6 +87,14 @@ if [ ${#workflows[@]} -gt 0 ]; then
     fi
 fi
 
+# --- the reasons for the lint configuration -------------------------------
+mapfile -t tidy_config < <(matching '.clang-tidy'; matching 'docs/coding-style.md')
+if [ ${#tidy_config[@]} -gt 0 ] && [ -x scripts/check-tidy-rationale.sh ]; then
+    note "check-tidy-rationale"
+    scripts/check-tidy-rationale.sh > /dev/null \
+        || fail "a check is switched off in .clang-tidy without a reason in docs/coding-style.md"
+fi
+
 # --- shell ----------------------------------------------------------------
 mapfile -t shell_scripts < <(matching '*.sh'; matching '.githooks/*')
 if [ ${#shell_scripts[@]} -gt 0 ]; then

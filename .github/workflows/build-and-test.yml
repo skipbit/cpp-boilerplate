@@ -118,6 +118,11 @@ jobs:
       # Fetched dependencies are not analysed - the module attaches clang-tidy
       # per target - so the tests are built and checked here like everything
       # else.
+      # An exclusion in .clang-tidy with no reason written down is how a lint
+      # configuration becomes untouchable. This makes that a build failure.
+      - name: Check that every disabled check is explained
+        run: ./scripts/check-tidy-rationale.sh
+
       - name: Run clang-tidy as part of the build
         run: |
           docker run --rm -v "$PWD":/src:ro cpp-boilerplate-toolchain:ci bash -euxc '

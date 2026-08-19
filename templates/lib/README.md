@@ -1,9 +1,23 @@
 # mylib
 
+![C++23](https://img.shields.io/badge/C%2B%2B-23-blue.svg)
+![CMake 3.28+](https://img.shields.io/badge/CMake-3.28%2B-blue.svg)
+![License 0BSD](https://img.shields.io/badge/license-0BSD-blue.svg)
+
 A C++ library that builds, tests, installs and packages itself from the first
 commit. Rename it and start writing.
 
 Generated from [cpp-boilerplate](https://github.com/skipbit/cpp-boilerplate).
+
+There is no build badge here on purpose. **Use this template** copies this file
+into your repository unchanged, and a workflow badge names the repository it
+belongs to - so it would sit at the top of your README reporting somebody
+else's build, green whatever yours does. The three above describe the code, and
+stay true after the copy. Add your own once you have a repository:
+
+```
+[![main check](https://github.com/YOU/YOURS/actions/workflows/main-check.yml/badge.svg)](https://github.com/YOU/YOURS/actions/workflows/main-check.yml)
+```
 
 ## Start
 
@@ -24,10 +38,14 @@ Everything is called `mylib`. Rename it:
 
 ```sh
 ./scripts/rename.sh yourlib
+./scripts/install-hooks.sh
 ```
 
-That covers the namespace, the target, the installed package, the generated
-headers and the naming rule in `.clang-tidy`.
+The first covers the namespace, the target, the installed package, the
+generated headers and the naming rule in `.clang-tidy`. The second points git
+at `.githooks/`, which runs clang-format, clang-tidy, actionlint and shellcheck
+on the files in a commit; anything not installed is skipped rather than
+treated as a failure. The dev container runs it for you.
 
 ## How it is laid out
 
@@ -37,6 +55,9 @@ src/               implementation, plus headers nobody else can include
 test/              unit tests, and a check that the installed package works
 examples/          programs a reader can run
 cmake/             package config, pkg-config and version templates
+docs/              why the configuration is what it is
+.devcontainer/     the pinned toolchain, used by CI and the dev container
+.githooks/         the checks that run before a commit
 ```
 
 **One feature is one header, one implementation and one test.** There is no
@@ -70,6 +91,27 @@ to `target_sources` in `CMakeLists.txt`.
   check that notices.
 - **An SBOM** in SPDX 3.0.1, off by default (`-DMYLIB_GENERATE_SBOM=ON`, needs
   CMake 4.3+).
+- **Workflows**: `pr-check` and `main-check` run the matrix, the pinned build
+  and the static analysis; `nightly-sanitizer` runs the address and thread
+  builds overnight; `release` turns a `vX.Y.Z` tag into a GitHub release.
+- **A pinned environment** in `.devcontainer/`, the same one CI builds against,
+  so a green build means the code changed rather than the machine.
+
+## Documents
+
+- [docs/coding-style.md](docs/coding-style.md) - what `.clang-format` and
+  `.clang-tidy` are set to, and why every disabled check is disabled. The list
+  is enforced: `scripts/check-tidy-rationale.sh` fails the build if a check is
+  switched off without a reason written down.
+- [docs/versioning.md](docs/versioning.md) - semantic versioning against the API
+  and the ABI, what breaks a C++ library, and how a release happens.
+
+## Releasing
+
+```sh
+./scripts/release.sh v0.2.0   # refuses a tag that disagrees with project(VERSION)
+git push origin v0.2.0        # this push is the release
+```
 
 ## Standard
 

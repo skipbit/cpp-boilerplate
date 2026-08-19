@@ -1,5 +1,11 @@
 # cpp-boilerplate
 
+[![main check](https://github.com/skipbit/cpp-boilerplate/actions/workflows/main-check.yml/badge.svg)](https://github.com/skipbit/cpp-boilerplate/actions/workflows/main-check.yml)
+[![nightly sanitizer](https://github.com/skipbit/cpp-boilerplate/actions/workflows/nightly-sanitizer.yml/badge.svg)](https://github.com/skipbit/cpp-boilerplate/actions/workflows/nightly-sanitizer.yml)
+![C++23](https://img.shields.io/badge/C%2B%2B-23-blue.svg)
+![CMake 3.28+](https://img.shields.io/badge/CMake-3.28%2B-blue.svg)
+![License 0BSD](https://img.shields.io/badge/license-0BSD-blue.svg)
+
 Starting points for C++ projects, so that the first day is spent on the problem
 rather than on CMake.
 
@@ -52,6 +58,12 @@ Presets: `debug` (warnings as errors), `release`, `asan`, `tsan`, `tidy`.
   builds a separate project against it with `find_package`, because a library
   that passes its own tests can still be impossible to consume.
 - **An SBOM** in SPDX 3.0.1, off by default. See below.
+- **Hooks** that run clang-format, clang-tidy, actionlint and shellcheck on the
+  files in a commit: `./scripts/install-hooks.sh`. Anything not installed is
+  skipped rather than treated as a failure.
+- **A release path**: a `vX.Y.Z` tag builds, tests, and publishes a GitHub
+  release. `scripts/release.sh` refuses to make a tag that disagrees with
+  `project(VERSION)`.
 
 ## Supported environments
 
@@ -91,12 +103,24 @@ unlocks it can change between CMake releases. CI exercises this path on every
 change, so a changed key shows up as a failing job rather than a document that
 silently stopped being written.
 
+## Documents
+
+- [docs/coding-style.md](docs/coding-style.md) - what `.clang-format` and
+  `.clang-tidy` are set to, and **why every disabled check is disabled**. That
+  list is checked: `scripts/check-tidy-rationale.sh` fails the build if a check
+  is switched off without a reason written down.
+- [docs/versioning.md](docs/versioning.md) - semantic versioning against the API
+  and the ABI, what breaks a C++ library, and how a release happens.
+
 ## Repository layout
 
 ```
 cmake/modules/     shared CMake modules, used by every template
+ci/                the workflows every published template gets
+docs/              the reasoning behind the configuration
 templates/lib/     the library template
 .devcontainer/     the pinned toolchain, used by CI and the dev container
+.githooks/         the checks that run before a commit
 ```
 
 `templates/*/cmake/modules` is a symlink to `cmake/modules`. The monorepo keeps
@@ -133,6 +157,12 @@ A template is a directory under `templates/` that builds on its own:
 4. If it needs system libraries, `templates/<name>/.devcontainer/Dockerfile`
    building `FROM` the shared toolchain image. The environment then travels
    with the template when it is published.
+
+Everything else it gets for free. `scripts/publish-template.sh` is the
+definition of what a published template contains: the license and the linting
+configuration, the pinned environment, the hooks, the documents, the release
+script, and the workflows in `ci/`. A template that needs a different version of
+any of those puts its own copy in `templates/<name>/`, and that copy wins.
 
 Application templates consume the library template through `find_package`
 rather than linking it directly in the same build tree. That is deliberate: it

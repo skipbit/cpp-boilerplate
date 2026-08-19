@@ -101,9 +101,18 @@ install(EXPORT mylib-targets
     DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/mylib"
     COMPONENT mylib_development)
 
+# Semantic versioning puts breaking changes in the minor slot while the major
+# version is 0, so SameMajorVersion would let find_package(mylib 0.1) accept an
+# installed 0.9 - a different library under that rule. See docs/versioning.md.
+if(PROJECT_VERSION_MAJOR EQUAL 0)
+    set(mylib_compatibility SameMinorVersion)
+else()
+    set(mylib_compatibility SameMajorVersion)
+endif()
+
 write_basic_package_version_file(
     "${CMAKE_CURRENT_BINARY_DIR}/mylib-config-version.cmake"
-    COMPATIBILITY SameMajorVersion)
+    COMPATIBILITY ${mylib_compatibility})
 
 configure_package_config_file(
     cmake/mylib-config.cmake.in

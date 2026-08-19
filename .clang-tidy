@@ -1,12 +1,16 @@
 ---
-# cpp-boilerplate — C++ static analysis configuration
-# Comprehensive checks for modern C++ development
-
-# Check configuration
-# Note: portability-avoid-pragma-once stays disabled — the template standard
-# is #pragma once (see docs/coding-style.md). The entry is kept for newer clang-tidy
-# versions that implement the check.
-# Careful: '#' inside the folded scalar below is literal text, not a comment.
+# What this file is for, and why each check is off, is written in
+# docs/coding-style.md. Every name in the exclusion list below has an entry
+# there; scripts/check-tidy-rationale.sh fails the build if one does not,
+# because an exclusion nobody can explain is one nobody dares to touch.
+#
+# YAML cannot hold a comment inside the folded scalar below - a '#' there is
+# literal text - which is why the reasons live in the document rather than
+# beside the lines.
+#
+# The list starts from -* and enables whole groups, so a check added by a newer
+# clang-tidy arrives switched on. That is deliberate: a new check is a new
+# question, and the build is where questions get asked.
 Checks: >
   -*,
   bugprone-*,
@@ -22,51 +26,30 @@ Checks: >
   readability-*,
   readability-redundant-declaration,
   -bugprone-easily-swappable-parameters,
-  -bugprone-exception-escape,
-  -cert-dcl21-cpp,
-  -cert-dcl50-cpp,
   -cert-oop54-cpp,
   -cppcoreguidelines-avoid-magic-numbers,
+  -readability-magic-numbers,
   -cppcoreguidelines-macro-usage,
   -cppcoreguidelines-non-private-member-variables-in-classes,
+  -misc-non-private-member-variables-in-classes,
   -cppcoreguidelines-owning-memory,
   -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
+  -hicpp-no-array-decay,
   -cppcoreguidelines-pro-bounds-constant-array-index,
   -cppcoreguidelines-pro-bounds-pointer-arithmetic,
   -cppcoreguidelines-pro-type-reinterpret-cast,
   -cppcoreguidelines-pro-type-union-access,
-  -cppcoreguidelines-pro-type-vararg,
-  -hicpp-avoid-c-arrays,
-  -hicpp-braces-around-statements,
-  -hicpp-exception-baseclass,
-  -hicpp-member-init,
   -hicpp-multiway-paths-covered,
-  -hicpp-named-parameter,
-  -hicpp-no-array-decay,
-  -hicpp-special-member-functions,
-  -hicpp-uppercase-literal-suffix,
-  -hicpp-use-auto,
-  -hicpp-use-emplace,
-  -hicpp-vararg,
-  -misc-non-private-member-variables-in-classes,
   -misc-use-anonymous-namespace,
   -modernize-use-trailing-return-type,
-  -performance-avoid-endl,
-  -readability-braces-around-statements,
+  -portability-avoid-pragma-once,
   -readability-function-cognitive-complexity,
-  -readability-identifier-length,
-  -readability-magic-numbers,
-  -readability-named-parameter,
-  -readability-uppercase-literal-suffix,
-  -portability-avoid-pragma-once
+  -readability-identifier-length
 
-# Warning as errors (strict mode)
 WarningsAsErrors: '*'
 
-# Analysis options
-# Note: AnalyzeTemporaryDtors removed in newer clang-tidy versions
-
-# Check-specific options
+# Options for the checks that are on. A threshold with no number written down
+# is a threshold nobody can argue with.
 CheckOptions:
   # Naming conventions
   - key: readability-identifier-naming.NamespaceCase
@@ -155,10 +138,6 @@ CheckOptions:
     value: '8388608'
 
   # Misc options
-  # clang-tidy 18 cannot map std::expected/std::unexpected to <expected>;
-  # ignore libc++ detail headers so include-cleaner does not require them.
-  - key: misc-include-cleaner.IgnoreHeaders
-    value: '.*__expected/.*'
   - key: misc-throw-by-value-catch-by-reference.CheckThrowTemporaries
     value: 'true'
   # Headers should contain declarations only - enforce strict separation
@@ -169,11 +148,13 @@ CheckOptions:
   - key: misc-definitions-in-headers.ImplementationFileExtensions
     value: 'c,cc,cpp,cxx'
 
-# Header filter - check all project headers
+# Which headers get analysed. Only the ones under src/: public headers are
+# checked through the translation units that include them, and everything a
+# dependency dragged in is not this project's problem.
 HeaderFilterRegex: '^.*/src/.*\.(h|hpp)$'
 
-# Use .clang-format for formatting suggestions
+# Fixes are formatted with this project's .clang-format rather than clang-tidy's
+# own idea of layout.
 FormatStyle: file
 
-# System headers
 SystemHeaders: false
