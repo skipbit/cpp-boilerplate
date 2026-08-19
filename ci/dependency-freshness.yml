@@ -1,0 +1,105 @@
+# Guards against pins quietly going stale.
+#
+# Dependabot reads workflow actions and Dockerfile base images. It does not read
+# CMake's FetchContent tags, nor apt versions pinned inside a RUN layer, so
+# those would sit at whatever version they were written at until somebody
+# noticed by hand. This job notices instead, and opens an issue.
+#
+# It watches the four pins this project started with, and only those. It is a
+# starting point in the same way the rest of the template is: a dependency you
+# add is a dependency you add a check for, next to the ones below.
+name: dependency freshness
+
+on:
+  schedule:
+    - cron: "0 20 * * 1" # Mondays, 20:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Compare pins against what is current
+        id: compare
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          stale=""
+
+          note() {
+            stale="${stale}- **$1**: pinned \`$2\`, current \`$3\`"$'\n'
+          }
+
+          # --- GoogleTest: fetched by tag, invisible to Dependabot ---
+          gtest_pinned=$(grep -oP 'CPPBP_GOOGLETEST_TAG "\K[^"]+' cmake/modules/TestDependencies.cmake)
+          gtest_current=$(gh api repos/google/googletest/releases \
+            --jq '[.[] | select(.prerelease == false) | .tag_name][0]')
+          [ "$gtest_pinned" = "$gtest_current" ] || note GoogleTest "$gtest_pinned" "$gtest_current"
+
+          # --- apt pins inside the image: ask the repositories themselves ---
+          cmake_pinned=$(grep -oP 'ARG CMAKE_VERSION=\K.*' .devcontainer/Dockerfile)
+          clang_pinned=$(grep -oP 'ARG CLANG_VERSION=\K.*' .devcontainer/Dockerfile)
+          gcc_pinned=$(grep -oP 'ARG GCC_VERSION=\K.*' .devcontainer/Dockerfile)
+
+          docker run --rm ubuntu:24.04 bash -c '
+            set -e
+            apt-get update -qq > /dev/null 2>&1
+            apt-get install -y -qq wget gpg ca-certificates > /dev/null 2>&1
+            wget -qO- https://apt.kitware.com/keys/kitware-archive-latest.asc \
+              | gpg --dearmor -o /usr/share/keyrings/k.gpg
+            echo "deb [signed-by=/usr/share/keyrings/k.gpg] https://apt.kitware.com/ubuntu/ noble main" \
+              > /etc/apt/sources.list.d/kitware.list
+            wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | gpg --dearmor -o /usr/share/keyrings/l.gpg
+            for v in 21 22 23 24 25; do
+              echo "deb [signed-by=/usr/share/keyrings/l.gpg] http://apt.llvm.org/noble/ llvm-toolchain-noble-$v main"
+            done > /etc/apt/sources.list.d/llvm.list
+            apt-get update -qq > /dev/null 2>&1
+            echo "cmake=$(apt-cache policy cmake | awk "/Candidate:/ {print \$2}")"
+            echo "clang=$(apt-cache search "^clang-[0-9]+$" | grep -oP "clang-\K[0-9]+" | sort -n | tail -1)"
+            echo "gcc=$(apt-cache search "^g\+\+-[0-9]+$" | grep -oP "g\+\+-\K[0-9]+" | sort -n | tail -1)"
+          ' > /tmp/current.txt || echo "probe failed" >&2
+
+          cmake_current=$(grep '^cmake=' /tmp/current.txt | cut -d= -f2- || echo "$cmake_pinned")
+          clang_current=$(grep '^clang=' /tmp/current.txt | cut -d= -f2- || echo "$clang_pinned")
+          gcc_current=$(grep '^gcc=' /tmp/current.txt | cut -d= -f2- || echo "$gcc_pinned")
+
+          [ "$cmake_pinned" = "$cmake_current" ] || note CMake "$cmake_pinned" "$cmake_current"
+          [ "$clang_pinned" = "$clang_current" ] || note Clang "$clang_pinned" "$clang_current"
+          [ "$gcc_pinned" = "$gcc_current" ] || note GCC "$gcc_pinned" "$gcc_current"
+
+          {
+            echo "stale<<STALE_EOF"
+            printf '%s' "$stale"
+            echo "STALE_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+          if [ -n "$stale" ]; then
+            echo "Behind:"; printf '%s' "$stale"
+          else
+            echo "Everything is current."
+          fi
+
+      # One open issue at a time: a weekly job that opens a new issue every week
+      # trains everyone to ignore the label.
+      - name: Open or update an issue
+        if: steps.compare.outputs.stale != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          title="Dependencies are behind"
+          body=$(printf 'These pins are behind what is currently published.\n\n%s\nThis issue is updated by the dependency-freshness workflow, which watches the pins this project was started with. It is not a to-do list with a deadline, and being behind is not the same as being broken.\n' "${{ steps.compare.outputs.stale }}")
+
+          existing=$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue edit "$existing" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body"
+          fi

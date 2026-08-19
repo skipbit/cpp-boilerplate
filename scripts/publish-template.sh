@@ -169,4 +169,26 @@ gh api -X PUT "repos/${owner}/${repo}/topics" \
     -f 'names[]=cpp' -f 'names[]=cpp23' -f 'names[]=cmake' \
     -f 'names[]=template' -f 'names[]=project-template' -f "names[]=${name}" > /dev/null
 
+# dependency-freshness is shipped to whoever uses the template and switched off
+# here. This repository has nothing for it to find: its pins are copied from the
+# source on every publish, so the place to fix one is never here - and its issue
+# tracker is closed, so the job's only way of reporting would fail and leave a
+# weekly red cross on a repository whose whole job is to look like a safe place
+# to start. Switched off as a repository setting rather than as a condition in
+# the file, because a condition would be copied into everybody's project and
+# switch it off there too, which is the one place it is worth having.
+#
+# A newly pushed workflow takes a moment to appear, hence the retry; and the
+# state is read back, because a publish that quietly failed to do this would
+# only be discovered by the cross it was meant to prevent.
+readonly disabled_workflow="dependency-freshness.yml"
+for attempt in 1 2 3 4 5; do
+    gh workflow disable "$disabled_workflow" --repo "${owner}/${repo}" > /dev/null 2>&1 && break
+    [ "$attempt" -lt 5 ] || die "could not disable ${disabled_workflow}; run: gh workflow disable ${disabled_workflow} --repo ${owner}/${repo}"
+    sleep 3
+done
+workflow_state=$(gh api "repos/${owner}/${repo}/actions/workflows/${disabled_workflow}" --jq '.state')
+[ "$workflow_state" = "disabled_manually" ] \
+    || die "${disabled_workflow} is ${workflow_state} on ${owner}/${repo}; it will run on a closed issue tracker and fail"
+
 echo "Published https://github.com/${owner}/${repo}"

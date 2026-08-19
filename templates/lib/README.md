@@ -99,7 +99,10 @@ to `target_sources` in `CMakeLists.txt`.
   CMake 4.3+).
 - **Workflows**: `pr-check` and `main-check` run the matrix, the pinned build
   and the static analysis; `nightly-sanitizer` runs the address and thread
-  builds overnight; `release` turns a `vX.Y.Z` tag into a GitHub release.
+  builds overnight; `release` turns a `vX.Y.Z` tag into a GitHub release;
+  `dependency-freshness` opens one issue, weekly, when a pin this started with
+  falls behind - the ones Dependabot cannot see, because it does not read
+  `FetchContent` tags or apt versions inside a `RUN` layer.
 - **A pinned environment** in `.devcontainer/`, the same one CI builds against,
   so a green build means the code changed rather than the machine.
 
