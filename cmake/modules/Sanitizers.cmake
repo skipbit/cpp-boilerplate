@@ -5,11 +5,20 @@
 # Usage:
 #   include(Sanitizers)
 #   cppbp_set_sanitizers(mylib PRIVATE)
+#
+# A sanitized library is not a drop-in replacement for an unsanitized one:
+# anything that links it has to be built the same way, or the sanitizer runtime
+# calls compiled into it resolve to nothing. cppbp_sanitizer_flags() exists so
+# that a test which builds a separate consumer can ask what those flags were.
 
-function(cppbp_set_sanitizers target visibility)
+# Writes the flags implied by the CPPBP_SANITIZE_* options into out_var, or an
+# empty string when none are on. Both compiling and linking need them.
+function(cppbp_sanitizer_flags out_var)
     if(MSVC)
         if(CPPBP_SANITIZE_ADDRESS)
-            target_compile_options(${target} ${visibility} /fsanitize=address)
+            set(${out_var} /fsanitize=address PARENT_SCOPE)
+        else()
+            set(${out_var} "" PARENT_SCOPE)
         endif()
         return()
     endif()
@@ -29,6 +38,7 @@ function(cppbp_set_sanitizers target visibility)
     endif()
 
     if(NOT enabled)
+        set(${out_var} "" PARENT_SCOPE)
         return()
     endif()
 
@@ -42,6 +52,17 @@ function(cppbp_set_sanitizers target visibility)
     endif()
 
     list(JOIN enabled "," joined)
-    target_compile_options(${target} ${visibility} -fsanitize=${joined} -fno-omit-frame-pointer)
-    target_link_options(${target} ${visibility} -fsanitize=${joined})
+    set(${out_var} -fsanitize=${joined} -fno-omit-frame-pointer PARENT_SCOPE)
+endfunction()
+
+function(cppbp_set_sanitizers target visibility)
+    cppbp_sanitizer_flags(flags)
+    if(NOT flags)
+        return()
+    endif()
+
+    target_compile_options(${target} ${visibility} ${flags})
+    if(NOT MSVC)
+        target_link_options(${target} ${visibility} ${flags})
+    endif()
 endfunction()

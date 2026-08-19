@@ -22,6 +22,14 @@ gtest_discover_tests(mylib_test)
 # The compiler and flags are passed through deliberately. A consumer built with
 # a different standard library links against different symbol names, so leaving
 # it to default would turn a real ABI question into an unrelated link error.
+#
+# The sanitizer flags go with them for the same reason. They are added per
+# target rather than through CMAKE_CXX_FLAGS, so the consumer cannot see them
+# unless they are handed over here - and a consumer that links a sanitized
+# static library without them fails on missing __asan_* symbols.
+cppbp_sanitizer_flags(mylib_sanitizer_flags)
+list(JOIN mylib_sanitizer_flags " " mylib_sanitizer_flags)
+
 add_test(
     NAME mylib.install-consume
     COMMAND "${CMAKE_COMMAND}"
@@ -32,5 +40,6 @@ add_test(
             -D "BUILD_TYPE=$<CONFIG>"
             -D "C_COMPILER=${CMAKE_C_COMPILER}"
             -D "CXX_COMPILER=${CMAKE_CXX_COMPILER}"
-            -D "CXX_FLAGS=${CMAKE_CXX_FLAGS}"
+            -D "CXX_FLAGS=${CMAKE_CXX_FLAGS} ${mylib_sanitizer_flags}"
+            -D "LINKER_FLAGS=${mylib_sanitizer_flags}"
             -P "${CMAKE_CURRENT_LIST_DIR}/run-install-consume.cmake")
