@@ -91,11 +91,17 @@ The language standard is C++23, set per target with `target_compile_features`.
 Which is less than it sounds: a standard is a compiler and a standard library,
 and on Ubuntu 24.04 they disagree. GCC 13 has `std::expected` and no `<print>`;
 clang 18 has neither against the libstdc++ it picks up by default, and both
-against libc++. That is why the table above has a standard library column and
-why the matrix runs six combinations rather than four. Configuration compiles
-each feature it cares about and says what it found, and the templates stay
-inside what all six have. See
-[docs/standard-library.md](docs/standard-library.md).
+against libc++. Nor is one library simply ahead: libc++ has `mdspan` and no
+`stacktrace`, libstdc++ the reverse, on both releases. That is why the table
+above has a standard library column, and why the matrix runs six combinations
+rather than four.
+
+The templates stay inside what all six provide, and
+`cppbp_require_std_feature(__cpp_lib_expected 202202)` is how code that
+replaces them says it needs more: configuration stops where the feature is
+absent rather than the build failing later somewhere else. See
+[docs/standard-library.md](docs/standard-library.md), which has the
+measurements.
 
 ## SBOM
 

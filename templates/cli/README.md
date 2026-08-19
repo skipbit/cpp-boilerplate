@@ -166,16 +166,18 @@ a different answer. Configuration prints what the toolchain in front of you
 actually has, and the code here stays inside what every environment in the
 matrix provides, so `cmake --preset tidy` works on a stock machine.
 
-To use something outside that set, ask for it in `CMakeLists.txt`:
+To use something outside that set, ask for it in `CMakeLists.txt`, by the
+feature test macro the standard gives it:
 
 ```cmake
-cppbp_require_std_feature(EXPECTED)
+cppbp_require_std_feature(__cpp_lib_expected 202202)
 ```
 
 Configuration then stops on the environments that do not have it, naming the
 environment and the way out, instead of failing later in a compile log or in
-somebody else's clone. [docs/standard-library.md](docs/standard-library.md)
-has the list.
+somebody else's clone. Any feature test macro works; there is no list here to
+be on. [docs/standard-library.md](docs/standard-library.md) has what the
+environments in the matrix actually provide, measured.
 
 ## Contributing
 

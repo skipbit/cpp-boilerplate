@@ -143,15 +143,17 @@ only name what every supported environment has.** What a header requires
 travels to whoever includes it, and their standard library is not yours to
 choose - `target_compile_features(mylib PUBLIC cxx_std_23)` asks a consumer for
 a standard, and a standard is exactly what does not settle this. Inside `src/`,
-which nobody installs, ask for what you like:
+which nobody installs, ask for what you like, by the feature test macro the
+standard gives it:
 
 ```cmake
-cppbp_require_std_feature(EXPECTED)
+cppbp_require_std_feature(__cpp_lib_expected 202202)
 ```
 
 Configuration then stops on the environments that do not have it, naming the
-environment and the way out. [docs/standard-library.md](docs/standard-library.md)
-has the list.
+environment and the way out. Any feature test macro works; there is no list
+here to be on. [docs/standard-library.md](docs/standard-library.md) has what
+the environments in the matrix actually provide, measured.
 
 ## Contributing
 

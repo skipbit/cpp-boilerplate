@@ -7,22 +7,48 @@ operating system, a compiler and a standard library - three things, not two.
 The set is the CI matrix. When this document and the matrix disagree, the
 matrix is right.
 
-Measured with `-std=gnu++23`, on the stock toolchains of each release:
+Measured with `-std=gnu++23`, on the stock toolchains of each release. `24 gcc`
+is GCC 13.3.0, `24 clang` is Clang 18.1.3, `26 gcc` is GCC 15.2.0, `26 clang` is
+Clang 21.1.8; `stdc++` and `c++` are the standard library each was given.
 
-| # | OS | compiler | standard library | `__cpp_concepts` | `std::expected` | `std::print` |
+| feature test macro | 24 gcc | 24 clang stdc++ | 24 clang c++ | 26 gcc | 26 clang stdc++ | 26 clang c++ |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Ubuntu 24.04 | GCC 13.3.0 | libstdc++ 13 | 202002 | yes | **no** |
-| 2 | Ubuntu 24.04 | Clang 18.1.3 | libstdc++ 13 | **201907** | **no** | **no** |
-| 3 | Ubuntu 24.04 | Clang 18.1.3 | libc++ 18 | 201907 | yes | yes |
-| 4 | Ubuntu 26.04 | GCC 15.2.0 | libstdc++ 15 | 202002 | yes | yes |
-| 5 | Ubuntu 26.04 | Clang 21.1.8 | libstdc++ 15 | 202002 | yes | yes |
-| 6 | Ubuntu 26.04 | Clang 21.1.8 | libc++ 21 | 202002 | yes | yes |
+| `__cpp_lib_expected` | yes | **no** | yes | yes | yes | yes |
+| `__cpp_lib_print` | **no** | **no** | yes | yes | yes | yes |
+| `__cpp_lib_mdspan` | **no** | **no** | yes | **no** | **no** | yes |
+| `__cpp_lib_ranges_to_container` | **no** | **no** | yes | yes | yes | yes |
+| `__cpp_lib_stacktrace` | yes | yes | **no** | yes | yes | **no** |
+| `__cpp_lib_move_only_function` | yes | yes | **no** | yes | yes | **no** |
+| `__cpp_lib_ranges_zip` | yes | yes | **no** | yes | yes | **no** |
+| `__cpp_lib_ranges_chunk` | yes | yes | **no** | yes | yes | **no** |
+| `__cpp_lib_spanstream` | yes | yes | **no** | yes | yes | **no** |
+| `__cpp_lib_generator` | **no** | **no** | **no** | yes | yes | **no** |
+| `__cpp_lib_flat_map` | **no** | **no** | **no** | yes | yes | yes |
 
-Row 2 is not an exotic environment. It is what you get by installing clang on
-Ubuntu 24.04 and building, and it is what `cmake --preset tidy` uses.
+Three things worth reading off it.
 
-Rows 2 and 3 are the same compiler. Everything that differs between them comes
-from the library, which is the point of the table.
+**Not one of these eleven is available everywhere.** C++23 as a whole is much
+less portable than a version number suggests, and this is a sample rather than
+the whole standard.
+
+**The two libraries are missing opposite things.** libc++ has `print`, `mdspan`
+and `ranges::to` and lacks `stacktrace`, `move_only_function`, `views::zip`,
+`views::chunk` and `spanstream`. libstdc++ is the other way round. So narrowing
+what is supported - to GCC with libstdc++ and clang with libc++, say - does not
+widen what can be used. It buys `std::expected` and loses `std::stacktrace`.
+The problem moves rather than shrinking.
+
+**A newer release does not fix it.** Everything true of libc++ 18 above is still
+true of libc++ 21, and libstdc++ 15 still has no `mdspan`.
+
+Two rows deserve a note. `__cpp_lib_expected` is the only one where the same
+library gives two answers: it is libstdc++ 13 in both 24.04 columns, and the
+compiler is what differs. `__cpp_lib_flat_map` and `__cpp_lib_generator` are
+plain absences - nobody has implemented them there yet.
+
+Row `24 clang stdc++` is not an exotic environment. It is what you get by
+installing clang on Ubuntu 24.04 and building, and it is what
+`cmake --preset tidy` uses.
 
 ## The floor is the intersection
 
@@ -39,52 +65,60 @@ your project has to stay.
 
 ## Stepping outside it
 
-Say so in `CMakeLists.txt`:
+Say so in `CMakeLists.txt`, next to the code that needs it:
 
 ```cmake
-cppbp_require_std_feature(EXPECTED)
+cppbp_require_std_feature(__cpp_lib_expected 202202)
+cppbp_require_std_feature(__cpp_lib_stacktrace)   # any version of it
 ```
 
 Configuration then stops, on exactly the environments that cannot provide it,
-with the environment named and the ways out listed. It does not stop anywhere
-else. What it costs is one line; what it buys is that the environments you have
-decided not to support say so at the beginning of a build instead of the middle,
-and say it in the same words to everyone who clones the repository.
+naming the compiler, the standard library, whether the feature is missing
+entirely or merely older than asked for, and the presets that do have it. It
+does not stop anywhere else. What it costs is one line; what it buys is that the
+environments you have decided not to support say so at the beginning of a build
+instead of the middle, in the same words to everyone who clones the repository.
 
-`EXPECTED` and `PRINT` are the features currently checked. Both were measured
-into the table above; nothing is on the list that has not been. Adding another
-is a row in `cmake/modules/StandardLibraryFeatures.cmake`.
+The argument is the feature test macro from the standard - the name cppreference
+prints beside the feature - and not a name invented here. There is no list of
+supported features to be on: the standard keeps that list, and a copy of it kept
+in this repository could only be a worse one, out of date the moment a library
+implements something.
 
-Configuration reports what it found, whether or not anything asked:
+The check reads the macro out of `<version>` rather than using the type. Those
+agree, including in the awkward case: under clang 18 with libstdc++,
+`<expected>` exists and is empty, and `__cpp_lib_expected` is undefined too. A
+check that asked only whether the header could be included would answer yes
+there and be wrong.
+
+Configuration reports which library it found, whether or not anything asked:
 
 ```
--- Standard library: libstdc++ (Clang 18.1.3, std::expected no, std::print no)
+-- Standard library: libstdc++ (Clang 18.1.3)
 ```
 
-The check compiles the feature rather than comparing a version macro. It has to:
-`<expected>` exists in row 2 and is empty, so a check that asks whether the
-header can be included answers yes and is wrong.
-
-## Why row 2 is missing `std::expected`
+## Why `24 clang stdc++` is missing `std::expected`
 
 Not because Clang 18 is missing a language feature. libstdc++ declares the
 contents of `<expected>` only when the compiler reports
 `__cpp_concepts >= 202002L`, and Clang 18 reports `201907L` - so the header is
-present and empty. The same compiler, given libc++, has `std::expected` (row 3).
+present and empty. The same compiler, given libc++, has `std::expected`.
 
 It is a library's declaration condition, not a compiler's capability, and the
 distinction matters when you are deciding what to do about it: there is nothing
 to wait for in the compiler, and the way out is a different library.
 
-It also expires. Clang 21 reports `202002L`, so rows 5 and 6 are unaffected and
-this particular hole closes when 24.04 stops being the oldest supported release.
-`std::print` is the plainer case: GCC 13 does not have `<print>` at all, and GCC
-14 does.
+It also expires. Clang 21 reports `202002L`, so the 26.04 columns are unaffected
+and this particular hole closes when 24.04 stops being the oldest supported
+release. Most of the table does not expire that way: the libc++ column is a set
+of features nobody has written yet, and 26.04 shows them still missing.
 
 ## The way out, and why it is not the default
 
-`cmake --preset clang-libc++` builds with clang against libc++, which is row 3,
-which has everything.
+`cmake --preset clang-libc++` builds with clang against libc++, which is the
+answer when what is missing is one of libc++'s strengths - `expected` on 24.04,
+`print`, `mdspan`. It is not an answer for `stacktrace` or `views::zip`, which
+libc++ does not have; there the default library is already the right one.
 
 It is not what clang does by default here, deliberately:
 
