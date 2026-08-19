@@ -113,6 +113,9 @@ silently stopped being written.
   `.clang-tidy` are set to, and **why every disabled check is disabled**. That
   list is checked: `scripts/check-tidy-rationale.sh` fails the build if a check
   is switched off without a reason written down.
+- [docs/standard-library.md](docs/standard-library.md) - which environments are
+  supported, what their standard libraries actually provide, and how to depend
+  on something outside what all of them have.
 - [docs/versioning.md](docs/versioning.md) - semantic versioning against the API
   and the ABI, what breaks a C++ library, and how a release happens.
 

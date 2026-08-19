@@ -25,6 +25,7 @@ include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 include(GenerateExportHeader)
 include(CompilerWarnings)
+include(StandardLibraryFeatures)
 include(Sanitizers)
 include(ClangTidy)
 
