@@ -123,6 +123,7 @@ cmake/modules/     shared CMake modules, used by every template
 ci/                the workflows every published template gets
 docs/              the reasoning behind the configuration
 templates/lib/     the library template
+templates/cli/     the command line template
 .devcontainer/     the pinned toolchain, used by CI and the dev container
 .githooks/         the checks that run before a commit
 ```
