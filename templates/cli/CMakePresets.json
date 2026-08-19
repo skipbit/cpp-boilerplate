@@ -52,6 +52,17 @@
         "CMAKE_C_COMPILER": "clang",
         "CMAKE_CXX_COMPILER": "clang++"
       }
+    },
+    {
+      "name": "clang-libc++",
+      "inherits": "debug",
+      "displayName": "Debug build with clang against libc++",
+      "description": "The way out when the libstdc++ clang picks up by default is missing something. Needs libc++-dev and libc++abi-dev, and produces objects that do not link against libstdc++ ones.",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_CXX_FLAGS": "-stdlib=libc++"
+      }
     }
   ],
   "buildPresets": [
@@ -59,7 +70,8 @@
     { "name": "release", "configurePreset": "release" },
     { "name": "asan", "configurePreset": "asan" },
     { "name": "tsan", "configurePreset": "tsan" },
-    { "name": "tidy", "configurePreset": "tidy" }
+    { "name": "tidy", "configurePreset": "tidy" },
+    { "name": "clang-libc++", "configurePreset": "clang-libc++" }
   ],
   "testPresets": [
     {
@@ -71,6 +83,7 @@
     { "name": "debug", "inherits": "base", "configurePreset": "debug" },
     { "name": "release", "inherits": "base", "configurePreset": "release" },
     { "name": "asan", "inherits": "base", "configurePreset": "asan" },
-    { "name": "tsan", "inherits": "base", "configurePreset": "tsan" }
+    { "name": "tsan", "inherits": "base", "configurePreset": "tsan" },
+    { "name": "clang-libc++", "inherits": "base", "configurePreset": "clang-libc++" }
   ]
 }
