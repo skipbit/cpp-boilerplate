@@ -42,10 +42,15 @@ Everything is called `mylib`. Rename it:
 ```
 
 The first covers the namespace, the target, the installed package, the
-generated headers and the naming rule in `.clang-tidy`. The second points git
-at `.githooks/`, which runs clang-format, clang-tidy, actionlint and shellcheck
-on the files in a commit; anything not installed is skipped rather than
-treated as a failure. The dev container runs it for you.
+generated headers, the naming rule in `.clang-tidy` and the homepage in
+`project()`. The homepage comes from the `origin` remote, or from a second
+argument (`./scripts/rename.sh yourlib https://github.com/you/yourlib`); with
+neither, the line is deleted rather than left pointing at the template, because
+CMake writes it into the installed SBOM.
+
+The second points git at `.githooks/`, which runs clang-format, clang-tidy,
+actionlint and shellcheck on the files in a commit; anything not installed is
+skipped rather than treated as a failure. The dev container runs it for you.
 
 ## How it is laid out
 
