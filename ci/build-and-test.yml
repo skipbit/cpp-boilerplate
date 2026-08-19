@@ -67,7 +67,7 @@ jobs:
         run: ctest --test-dir build --output-on-failure
 
   pinned:
-    name: pinned toolchain (with SBOM)
+    name: pinned toolchain
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -88,18 +88,30 @@ jobs:
       # deliberately: the key that unlocks the experimental feature changes
       # between CMake releases, and a changed key should be a failing job rather
       # than a document that silently stopped being written.
+      #
+      # Which option switches it on is read out of CMakeLists.txt rather than
+      # written here. The option is named after the project, this file is the
+      # same in every project that starts from a template, and renaming one
+      # renames the option - so a name written here is wrong for everybody
+      # except the first. A project with no such option, because install(SBOM)
+      # cannot describe what it installs, is still built, tested and installed;
+      # there is simply nothing to look for afterwards.
       - name: Build, test, and write an SBOM
         run: |
-          docker run --rm -v "$PWD":/src:ro toolchain:ci bash -euxc '
+          sbom=$(grep -oE '[A-Za-z0-9_]+_GENERATE_SBOM' CMakeLists.txt | head -1 || true)
+          echo "SBOM option: ${sbom:-none declared in CMakeLists.txt}"
+          docker run --rm -v "$PWD":/src:ro -e SBOM="$sbom" toolchain:ci bash -euxc '
             cmake --version | head -1
             cmake -S /src -B /tmp/build -G Ninja \
               -DCMAKE_BUILD_TYPE=Release \
               -DCPPBP_WARNINGS_AS_ERRORS=ON \
-              -DMYLIB_GENERATE_SBOM=ON
+              ${SBOM:+"-D${SBOM}=ON"}
             cmake --build /tmp/build
             ctest --test-dir /tmp/build --output-on-failure
             cmake --install /tmp/build --prefix /tmp/prefix
-            test -s /tmp/prefix/lib/sbom/mylib/mylib.spdx.json
+            if [ -n "$SBOM" ]; then
+              find /tmp/prefix -name "*.spdx.json" -size +0c | grep -q .
+            fi
           '
 
   static-analysis:
@@ -141,10 +153,18 @@ jobs:
             cmake --build /tmp/tidy
           '
 
+      # Every source in the tree, rather than a list of directories. Naming them
+      # means a project laid out differently has its sources checked or not
+      # depending on what it happens to have called them - and it fails quietly:
+      # find exits 1 for a directory that is not there, but the status the job
+      # sees belongs to xargs, so the only trace is a line of stderr nobody
+      # reads. Which directories exist differs between projects; that a project
+      # has sources does not.
       - name: Check formatting
         run: |
           docker run --rm -v "$PWD":/src:ro toolchain:ci bash -euxc '
             cd /src
-            find include src test examples -name "*.cpp" -o -name "*.hpp" \
+            find . \( -name .git -o -name build -o -name out \) -prune -o \
+                 \( -name "*.cpp" -o -name "*.hpp" \) -print \
               | xargs clang-format --dry-run --Werror
           '

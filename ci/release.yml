@@ -49,24 +49,38 @@ jobs:
           tags: toolchain:ci
           cache-from: type=gha
 
+      # Named after the repository rather than after a project written into this
+      # file. This workflow is copied into every project that starts from a
+      # template, and the name of the first one is not the name of any of the
+      # others.
+      - name: Name the archive
+        run: echo "ARCHIVE=${GITHUB_REPOSITORY##*/}-${GITHUB_REF_NAME}-linux-x64" >> "$GITHUB_ENV"
+
       # Built in the pinned image so that the archive is reproducible from the
       # Dockerfile in this repository rather than from whatever the runner had.
+      #
+      # The SBOM option is read out of CMakeLists.txt for the same reason the
+      # name is: it is named after the project, and some projects install
+      # something install(SBOM) cannot describe and so declare no option at all.
       - name: Build and install into a staging directory
         run: |
           mkdir -p stage
-          docker run --rm -v "$PWD":/src:ro -v "$PWD/stage":/stage toolchain:ci bash -euxc '
+          sbom=$(grep -oE '[A-Za-z0-9_]+_GENERATE_SBOM' CMakeLists.txt | head -1 || true)
+          echo "SBOM option: ${sbom:-none declared in CMakeLists.txt}"
+          docker run --rm -v "$PWD":/src:ro -v "$PWD/stage":/stage \
+            -e SBOM="$sbom" -e ARCHIVE="$ARCHIVE" toolchain:ci bash -euxc '
             cmake -S /src -B /tmp/build -G Ninja \
               -DCMAKE_BUILD_TYPE=Release \
               -DCPPBP_WARNINGS_AS_ERRORS=ON \
-              -DMYLIB_GENERATE_SBOM=ON
+              ${SBOM:+"-D${SBOM}=ON"}
             cmake --build /tmp/build
             ctest --test-dir /tmp/build --output-on-failure
-            cmake --install /tmp/build --prefix /stage/mylib-'"${GITHUB_REF_NAME}"'-linux-x64
+            cmake --install /tmp/build --prefix "/stage/${ARCHIVE}"
             chown -R $(stat -c "%u:%g" /stage) /stage
           '
 
       - name: Archive it
-        run: tar -czf "mylib-${GITHUB_REF_NAME}-linux-x64.tar.gz" -C stage .
+        run: tar -czf "${ARCHIVE}.tar.gz" -C stage .
 
       # --generate-notes writes the changelog from the commits and pull requests
       # since the previous tag, so that a release nobody wrote notes for still
@@ -78,4 +92,4 @@ jobs:
           gh release create "${GITHUB_REF_NAME}" \
             --title "${GITHUB_REF_NAME}" \
             --generate-notes \
-            "mylib-${GITHUB_REF_NAME}-linux-x64.tar.gz"
+            "${ARCHIVE}.tar.gz"
