@@ -6,18 +6,19 @@
 # project wants to verify (24.04 ships CMake 3.28 and GCC 13), so CMake comes
 # from Kitware's repository and Clang from LLVM's.
 #
-# Only what every template needs lives here. Dependencies fall into three kinds,
-# and they belong in three different places:
+# Only the toolchain lives here. Dependencies fall into three kinds, and they
+# belong in three different places:
 #
-#   toolchain          compilers, CMake, ninja, clang-tidy    -> this file
-#   system libraries   Qt, TreeFrog, OpenGL                   -> templates/<name>/.devcontainer/
-#   source dependencies  CLI11, GoogleTest                    -> FetchContent, no image at all
+#   toolchain            compilers, CMake, ninja, clang-tidy  -> this file
+#   system libraries     Qt, TreeFrog, OpenGL                 -> a Dockerfile
+#                                                               FROM this one
+#   source dependencies  CLI11, GoogleTest                    -> FetchContent,
+#                                                               no image at all
 #
-# Putting a template's system libraries here would mean editing a file every
-# template shares - invalidating its cache and mixing unrelated changes - every
-# time a new template arrives. A template that needs Qt builds FROM this image
-# and adds Qt in its own directory, so the two update independently and the
-# environment travels with the template when it is published.
+# This file is shared, so adding a system library here invalidates the cache for
+# everything that uses it and mixes unrelated changes together. Something that
+# needs Qt builds FROM this image and adds Qt on top, so the two update
+# independently.
 
 FROM ubuntu:24.04
 

@@ -10,11 +10,35 @@
 # it needs the license and the linting configuration that every template
 # shares, and the shared CMake modules it reaches through a symlink - so this
 # script is the definition of what a published template actually contains.
+#
+# What it contains is decided by one question: the published repository is
+# where somebody starts developing, not a shelf the template is displayed on.
+# So it gets the environment (.devcontainer), the hooks, the release script and
+# a full set of workflows, and not only the sources.
 
 set -euo pipefail
 
 readonly owner="skipbit"
-readonly shared=(.clang-format .clang-tidy .editorconfig .gitignore LICENSE)
+
+# Copied to the same path. A template that ships its own copy keeps it.
+readonly shared=(
+    .clang-format
+    .clang-tidy
+    .devcontainer
+    .editorconfig
+    .githooks
+    .github/actionlint.yaml
+    .github/dependabot.yml
+    .gitignore
+    LICENSE
+    scripts/install-hooks.sh
+    scripts/release.sh
+)
+
+# ci/<name>.yml becomes .github/workflows/<name>.yml. The monorepo's own
+# workflows in .github/workflows/ are not published: they build every template
+# together, which is not a thing a single project can do.
+readonly workflow_source="ci"
 
 die() { echo "error: $*" >&2; exit 1; }
 
@@ -38,8 +62,22 @@ trap 'rm -rf "$work"' EXIT
 
 # -L resolves cmake/modules, which is a symlink here and must be real there.
 cp -rL "$src/." "$work/"
+
+# The template's own copy wins, so a template can replace a shared file without
+# changing it for every other one.
+add_shared() {
+    local from=$1 to=$2
+    [ -e "$work/$to" ] && return 0
+    mkdir -p "$(dirname "$work/$to")"
+    cp -rL "$from" "$work/$to"
+}
+
 for f in "${shared[@]}"; do
-    cp "$root/$f" "$work/$f"
+    add_shared "$root/$f" "$f"
+done
+
+for f in "$root/$workflow_source"/*.yml; do
+    add_shared "$f" ".github/workflows/$(basename "$f")"
 done
 
 cd "$work"

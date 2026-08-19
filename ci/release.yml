@@ -1,0 +1,81 @@
+# A release is a git tag. This workflow is what the tag causes.
+#
+# Nothing here decides a version number: scripts/release.sh already refused to
+# create a tag that disagrees with project(VERSION), and the first job checks it
+# again, because a tag can also be created by hand or by the web interface.
+#
+# The full gate runs before anything is published. A release that skipped the
+# checks main has to pass is a release that says less than main does.
+#
+# Note for anyone comparing this with older examples: actions/create-release and
+# actions/upload-release-asset are archived repositories whose last commit is
+# from March 2021. The gh CLI is preinstalled on the runners and does both.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    name: the tag matches the source
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - run: ./scripts/release.sh --check "${GITHUB_REF_NAME}"
+
+  verify:
+    needs: version
+    uses: ./.github/workflows/build-and-test.yml
+
+  publish:
+    needs: verify
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write # creating a release writes to the repository
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Build the pinned image
+        uses: docker/build-push-action@v7
+        with:
+          context: .devcontainer
+          load: true
+          tags: toolchain:ci
+          cache-from: type=gha
+
+      # Built in the pinned image so that the archive is reproducible from the
+      # Dockerfile in this repository rather than from whatever the runner had.
+      - name: Build and install into a staging directory
+        run: |
+          mkdir -p stage
+          docker run --rm -v "$PWD":/src:ro -v "$PWD/stage":/stage toolchain:ci bash -euxc '
+            cmake -S /src -B /tmp/build -G Ninja \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DCPPBP_WARNINGS_AS_ERRORS=ON \
+              -DMYLIB_GENERATE_SBOM=ON
+            cmake --build /tmp/build
+            ctest --test-dir /tmp/build --output-on-failure
+            cmake --install /tmp/build --prefix /stage/mylib-'"${GITHUB_REF_NAME}"'-linux-x64
+            chown -R $(stat -c "%u:%g" /stage) /stage
+          '
+
+      - name: Archive it
+        run: tar -czf "mylib-${GITHUB_REF_NAME}-linux-x64.tar.gz" -C stage .
+
+      # --generate-notes writes the changelog from the commits and pull requests
+      # since the previous tag, so that a release nobody wrote notes for still
+      # says what changed.
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "${GITHUB_REF_NAME}" \
+            --generate-notes \
+            "mylib-${GITHUB_REF_NAME}-linux-x64.tar.gz"
