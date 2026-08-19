@@ -61,6 +61,15 @@ if [ -n "$(git -C "$root" status --porcelain)" ]; then
     die "the working tree is dirty; publish from a committed state so the record means something"
 fi
 
+# The table in the README is the only index of which templates exist and where
+# they went, so a template that is not in it is a template nobody can find.
+# Checked here rather than in CI because publishing is the only moment the
+# answer can change - and the clean tree above means this README is the one
+# that is about to be public, not an uncommitted local edit.
+if $push && ! grep -q "github.com/${owner}/${repo}" "$root/README.md"; then
+    die "README.md does not link ${owner}/${repo}; add its row to the table, and commit it, first"
+fi
+
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
@@ -125,7 +134,15 @@ if ! $push; then
     exit 0
 fi
 
-if ! gh repo view "${owner}/${repo}" > /dev/null 2>&1; then
+if gh repo view "${owner}/${repo}" > /dev/null 2>&1; then
+    # The push below rewrites history, which leaves an open pull request
+    # unmergeable against a branch that no longer contains its base - and its
+    # author with nothing to read that explains why. The README asks people not
+    # to send one; this is what happens when somebody does anyway.
+    open_prs=$(gh pr list --repo "${owner}/${repo}" --state open --json number --jq 'length')
+    [ "$open_prs" = "0" ] \
+        || die "${owner}/${repo} has ${open_prs} open pull request(s); answer them before force-pushing over them"
+else
     gh repo create "${owner}/${repo}" --public \
         --description "A C++ ${name} template: CMake, CI, sanitizers, static analysis and an installable package. Generated from cpp-boilerplate. 0BSD."
 fi
