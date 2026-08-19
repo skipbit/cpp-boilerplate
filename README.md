@@ -16,9 +16,9 @@ one feature means one header, one implementation and one test.
 
 ## Which one do I want?
 
-| template | for | status |
+| template | for | repository |
 | --- | --- | --- |
-| `lib` | a library other code links against | ready |
+| `lib` | a library other code links against | [skipbit/cpp-boilerplate-lib](https://github.com/skipbit/cpp-boilerplate-lib) |
 | `cli` | a command line tool | planned |
 | `daemon` | a long-running process | planned |
 | `qt` | a Qt desktop application | planned |
@@ -28,11 +28,12 @@ Each template is also published as its own repository, so that GitHub's
 repository is where they are developed: the shared CMake modules, the linting
 configuration and the CI live here once instead of four times.
 
-## Quick start
+## Start
+
+Press **Use this template** on the repository for the one you want - the table
+above links them. Then:
 
 ```sh
-git clone https://github.com/skipbit/cpp-boilerplate
-cd cpp-boilerplate
 cmake --preset debug
 cmake --build --preset debug
 ctest --preset debug
@@ -42,6 +43,9 @@ Nothing else has to be installed first: CMake, a compiler and Ninja are enough,
 and the test framework is fetched during configuration.
 
 Presets: `debug` (warnings as errors), `release`, `asan`, `tsan`, `tidy`.
+
+To build this repository instead - every template at once, which is what the CI
+does - see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## What is wired in
 
@@ -145,34 +149,15 @@ The `dependency-freshness` job covers the rest by asking the upstream
 repositories directly and opening a single, updated issue when something is
 behind.
 
-## Adding a template
-
-A template is a directory under `templates/` that builds on its own:
-
-1. `templates/<name>/CMakeLists.txt` with its own `project()` call, so the
-   published repository builds without a parent.
-2. `ln -s ../../../cmake/modules templates/<name>/cmake/modules`, so it uses
-   the shared modules rather than a copy of them.
-3. An `option()` and an `add_subdirectory()` in the top-level `CMakeLists.txt`.
-4. If it needs system libraries, `templates/<name>/.devcontainer/Dockerfile`
-   building `FROM` the shared toolchain image. The environment then travels
-   with the template when it is published.
-
-Everything else it gets for free. `scripts/publish-template.sh` is the
-definition of what a published template contains: the license and the linting
-configuration, the pinned environment, the hooks, the documents, the release
-script, and the workflows in `ci/`. A template that needs a different version of
-any of those puts its own copy in `templates/<name>/`, and that copy wins.
-
-Application templates consume the library template through `find_package`
-rather than linking it directly in the same build tree. That is deliberate: it
-is the only arrangement in which a broken install rule fails a build.
-
 ## Contributing
 
-Issues and pull requests belong here, in this repository. The per-template
-repositories are generated from this one, so changes made there are overwritten
-the next time they are published.
+Issues and pull requests belong here, in this repository: the per-template
+repositories are generated from this one, so anything committed there is
+overwritten the next time they are published.
+
+[CONTRIBUTING.md](CONTRIBUTING.md) has the rest - how to build the whole
+repository, what runs before a commit, and how a template is added and
+published.
 
 ## License
 
