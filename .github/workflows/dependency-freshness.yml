@@ -39,6 +39,19 @@ jobs:
             --jq '[.[] | select(.prerelease == false) | .tag_name][0]')
           [ "$gtest_pinned" = "$gtest_current" ] || note GoogleTest "$gtest_pinned" "$gtest_current"
 
+          # --- CLI11: declared in the shared modules, linked by some projects ---
+          # Checked by what links it rather than by what declares it: the
+          # declaration travels with the shared CMake modules, and a project
+          # that never links CLI11 does not have a CLI11 problem.
+          if grep -rqF "CLI11::CLI11" --include=CMakeLists.txt .; then
+            cli11_pinned=$(grep -oP 'CPPBP_CLI11_TAG "\K[^"]+' cmake/modules/CommandLineDependencies.cmake)
+            cli11_current=$(gh api repos/CLIUtils/CLI11/releases \
+              --jq '[.[] | select(.prerelease == false) | .tag_name][0]')
+            [ "$cli11_pinned" = "$cli11_current" ] || note CLI11 "$cli11_pinned" "$cli11_current"
+          else
+            echo "Nothing links CLI11::CLI11 here, so its pin is not this project's problem."
+          fi
+
           # --- apt pins inside the image: ask the repositories themselves ---
           cmake_pinned=$(grep -oP 'ARG CMAKE_VERSION=\K.*' .devcontainer/Dockerfile)
           clang_pinned=$(grep -oP 'ARG CLANG_VERSION=\K.*' .devcontainer/Dockerfile)
