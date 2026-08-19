@@ -158,13 +158,24 @@ git push origin v0.2.0        # this push is the release
 C++23, set per target with `target_compile_features`. Change one line in
 `CMakeLists.txt` to move it.
 
-Note that a standard is not a single thing, and not even one thing per
-compiler. GCC 13, which Ubuntu 24.04 ships, implements most of C++23 but not
-`<print>`. `std::expected` is there in GCC 13 and in Clang 18 against libc++,
-and missing in Clang 18 against libstdc++ - the library declares it only when
-the compiler reports `__cpp_concepts >= 202002L`, and that Clang does not. The
-matrix has all four combinations for this reason, so a feature two thirds of
-your compilers have fails here rather than reaching a user.
+A standard is not one thing, and not one thing per compiler either: it is a
+compiler and a standard library, and the two disagree. On Ubuntu 24.04, GCC 13
+has `std::expected` and no `<print>`; clang 18 has neither against the
+libstdc++ it picks up by default, and both against libc++ - the same compiler,
+a different answer. Configuration prints what the toolchain in front of you
+actually has, and the code here stays inside what every environment in the
+matrix provides, so `cmake --preset tidy` works on a stock machine.
+
+To use something outside that set, ask for it in `CMakeLists.txt`:
+
+```cmake
+cppbp_require_std_feature(EXPECTED)
+```
+
+Configuration then stops on the environments that do not have it, naming the
+environment and the way out, instead of failing later in a compile log or in
+somebody else's clone. [docs/standard-library.md](docs/standard-library.md)
+has the list.
 
 ## Contributing
 

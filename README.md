@@ -87,8 +87,14 @@ means the code changed rather than the environment. The dev container uses the
 same image.
 
 The language standard is C++23, set per target with `target_compile_features`.
-Ubuntu 24.04 is in the matrix, so anything its GCC 13 does not implement yet
-(`std::print`, for one) fails there rather than reaching you later.
+Which is less than it sounds: a standard is a compiler and a standard library,
+and on Ubuntu 24.04 they disagree. GCC 13 has `std::expected` and no `<print>`;
+clang 18 has neither against the libstdc++ it picks up by default, and both
+against libc++. That is why the table above has a standard library column and
+why the matrix runs six combinations rather than four. Configuration compiles
+each feature it cares about and says what it found, and the templates stay
+inside what all six have. See
+[docs/standard-library.md](docs/standard-library.md).
 
 ## SBOM
 

@@ -29,12 +29,14 @@ struct Options {
 /// for the first two, non-zero for the third. Nothing here carries a message,
 /// because the parser says what went wrong better than a caller repeating it.
 ///
-/// Not `std::expected`, which would say all of this in one type. libstdc++
-/// declares it only when the compiler reports `__cpp_concepts >= 202002L`, and
-/// Clang 18 - the clang Ubuntu 24.04 ships - does not. It compiles with GCC 13,
-/// and with that same Clang against libc++, and fails on the third combination
-/// in the matrix. A standard is not one thing, and finding that out here rather
-/// than from a user is what the matrix is for.
+/// Not `std::expected`. Three named fields say more here than a value and an
+/// error would: `--help` is not a failure, and the status to exit with is not
+/// an error code. Putting the first two in the error channel of an expected
+/// would be a smaller type saying a less true thing.
+///
+/// There is a portability reason as well, and it is in
+/// docs/standard-library.md rather than here, because it is about the
+/// toolchain and not about this function.
 struct Outcome {
     Options options;
     bool run = true;

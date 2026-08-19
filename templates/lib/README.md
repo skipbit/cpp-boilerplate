@@ -130,9 +130,28 @@ git push origin v0.2.0        # this push is the release
 C++23, set per target with `target_compile_features`. Change one line in
 `CMakeLists.txt` to move it.
 
-Note that a standard is not a single thing: GCC 13, which Ubuntu 24.04 ships,
-implements most of C++23 but not `<print>`. The CI matrix includes it, so a
-feature your compilers do not have yet fails there rather than reaching a user.
+A standard is not one thing, and not one thing per compiler either: it is a
+compiler and a standard library, and the two disagree. On Ubuntu 24.04, GCC 13
+has `std::expected` and no `<print>`; clang 18 has neither against the
+libstdc++ it picks up by default, and both against libc++ - the same compiler,
+a different answer. Configuration prints what the toolchain in front of you
+actually has, and the code here stays inside what every environment in the
+matrix provides, so `cmake --preset tidy` works on a stock machine.
+
+For a library there is a second rule on top of that one: **a public header may
+only name what every supported environment has.** What a header requires
+travels to whoever includes it, and their standard library is not yours to
+choose - `target_compile_features(mylib PUBLIC cxx_std_23)` asks a consumer for
+a standard, and a standard is exactly what does not settle this. Inside `src/`,
+which nobody installs, ask for what you like:
+
+```cmake
+cppbp_require_std_feature(EXPECTED)
+```
+
+Configuration then stops on the environments that do not have it, naming the
+environment and the way out. [docs/standard-library.md](docs/standard-library.md)
+has the list.
 
 ## Contributing
 
