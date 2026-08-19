@@ -103,6 +103,8 @@ else
 fi
 
 git init -q -b main
+# Set explicitly: this tree is assembled in a temporary directory, where any
+# conditional include in the global configuration does not apply.
 git config user.name "Yuma Endo"
 git config user.email "endo@skipbit.jp"
 git add -A
@@ -125,8 +127,9 @@ if ! gh repo view "${owner}/${repo}" > /dev/null 2>&1; then
         --description "A C++ ${name} template: CMake, CI, sanitizers, static analysis and an installable package. Generated from cpp-boilerplate. 0BSD."
 fi
 
-# HTTPS deliberately: the ssh key on this machine belongs to a different
-# account, and gh's credential helper uses the one that owns the repository.
+# HTTPS deliberately. Over SSH the push is made by whichever key the agent
+# offers first, which is not necessarily the account that owns this repository;
+# over HTTPS gh's credential helper picks the one that does.
 git remote add origin "https://${owner}@github.com/${owner}/${repo}.git"
 git push --force --quiet origin main
 
