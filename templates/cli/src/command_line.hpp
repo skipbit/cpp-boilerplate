@@ -1,6 +1,5 @@
 #pragma once
 
-#include <expected>
 #include <string>
 #include <vector>
 
@@ -22,12 +21,26 @@ struct Options {
     bool bytes = true;
 };
 
-/// Parses `argv`, or reports the exit code the program should end with.
+/// What reading the command line produced. The three fields are read together.
 ///
-/// The error is an exit status rather than a message because the message has
-/// already been printed: `--help` and `--version` are successful requests that
-/// end the program, and a usage error prints what was wrong. Both are things
-/// the parser knows how to say better than a caller would.
-[[nodiscard]] auto parse(int argc, const char* const* argv) -> std::expected<Options, int>;
+/// `run` is false when the parser has already answered and the program should
+/// end: `--help` and `--version` are requests it satisfies itself, and a usage
+/// error has already been printed. `status` is what to exit with then - zero
+/// for the first two, non-zero for the third. Nothing here carries a message,
+/// because the parser says what went wrong better than a caller repeating it.
+///
+/// Not `std::expected`, which would say all of this in one type. libstdc++
+/// declares it only when the compiler reports `__cpp_concepts >= 202002L`, and
+/// Clang 18 - the clang Ubuntu 24.04 ships - does not. It compiles with GCC 13,
+/// and with that same Clang against libc++, and fails on the third combination
+/// in the matrix. A standard is not one thing, and finding that out here rather
+/// than from a user is what the matrix is for.
+struct Outcome {
+    Options options;
+    bool run = true;
+    int status = 0;
+};
+
+[[nodiscard]] auto parse(int argc, const char* const* argv) -> Outcome;
 
 }  // namespace mycli::command_line

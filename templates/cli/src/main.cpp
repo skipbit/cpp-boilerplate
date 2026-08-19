@@ -16,10 +16,10 @@ int main(int argc, char** argv)
 {
     try {
         const auto parsed = mycli::command_line::parse(argc, argv);
-        if (! parsed) {
-            return parsed.error();
+        if (! parsed.run) {
+            return parsed.status;
         }
-        const auto& options = *parsed;
+        const auto& options = parsed.options;
 
         // No file names means standard input, the way every other filter behaves,
         // so that this can sit in the middle of a pipeline. The loop below then

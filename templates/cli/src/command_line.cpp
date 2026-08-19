@@ -1,6 +1,5 @@
 #include "command_line.hpp"
 
-#include <expected>
 #include <string>
 
 #include <CLI/CLI.hpp>
@@ -9,7 +8,7 @@
 
 namespace mycli::command_line {
 
-auto parse(int argc, const char* const* argv) -> std::expected<Options, int>
+auto parse(int argc, const char* const* argv) -> Outcome
 {
     Options options;
 
@@ -31,7 +30,7 @@ auto parse(int argc, const char* const* argv) -> std::expected<Options, int>
     try {
         app.parse(argc, argv);
     } catch (const CLI::ParseError& error) {
-        return std::unexpected(app.exit(error));
+        return {.options = {}, .run = false, .status = app.exit(error)};
     }
 
     if (lines || words || bytes) {
@@ -40,7 +39,7 @@ auto parse(int argc, const char* const* argv) -> std::expected<Options, int>
         options.bytes = bytes;
     }
 
-    return options;
+    return {.options = options, .run = true, .status = 0};
 }
 
 }  // namespace mycli::command_line

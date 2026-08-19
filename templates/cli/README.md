@@ -87,7 +87,7 @@ here, and each one does a single thing:
 
 | unit | does | knows about |
 | --- | --- | --- |
-| `command_line` | turns `argv` into an `Options` | CLI11, and nothing else does |
+| `command_line` | turns `argv` into an `Outcome` | CLI11, and nothing else does |
 | `counting` | counts lines, words and bytes in a stream | nothing |
 | `report` | turns counts into the line that gets printed | the other two |
 
@@ -155,10 +155,13 @@ git push origin v0.2.0        # this push is the release
 C++23, set per target with `target_compile_features`. Change one line in
 `CMakeLists.txt` to move it.
 
-Note that a standard is not a single thing: GCC 13, which Ubuntu 24.04 ships,
-implements most of C++23 but not `<print>`. The CI matrix includes it, so a
-feature your compilers do not have yet fails there rather than reaching a user.
-`std::expected`, which `command_line::parse` returns, is there in all of them.
+Note that a standard is not a single thing, and not even one thing per
+compiler. GCC 13, which Ubuntu 24.04 ships, implements most of C++23 but not
+`<print>`. `std::expected` is there in GCC 13 and in Clang 18 against libc++,
+and missing in Clang 18 against libstdc++ - the library declares it only when
+the compiler reports `__cpp_concepts >= 202002L`, and that Clang does not. The
+matrix has all four combinations for this reason, so a feature two thirds of
+your compilers have fails here rather than reaching a user.
 
 ## Contributing
 
