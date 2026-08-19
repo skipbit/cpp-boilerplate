@@ -178,16 +178,31 @@ gh api -X PUT "repos/${owner}/${repo}/topics" \
 # the file, because a condition would be copied into everybody's project and
 # switch it off there too, which is the one place it is worth having.
 #
-# A newly pushed workflow takes a moment to appear, hence the retry; and the
-# state is read back, because a publish that quietly failed to do this would
-# only be discovered by the cross it was meant to prevent.
+# The state is read before it is set, because disabling one that is already
+# disabled answers 403 rather than doing nothing, and every publish after the
+# first would fail on it. It is read again afterwards, because a publish that
+# quietly failed here would be discovered by the cross it exists to prevent.
+# The wait is for the first publish: a workflow does not exist to the API until
+# GitHub has processed the push that introduced it.
 readonly disabled_workflow="dependency-freshness.yml"
-for attempt in 1 2 3 4 5; do
-    gh workflow disable "$disabled_workflow" --repo "${owner}/${repo}" > /dev/null 2>&1 && break
-    [ "$attempt" -lt 5 ] || die "could not disable ${disabled_workflow}; run: gh workflow disable ${disabled_workflow} --repo ${owner}/${repo}"
+readonly workflow_api="repos/${owner}/${repo}/actions/workflows/${disabled_workflow}"
+
+workflow_state=""
+for _ in 1 2 3 4 5; do
+    workflow_state=$(gh api "$workflow_api" --jq '.state' 2> /dev/null) || workflow_state=""
+    if [ -n "$workflow_state" ]; then
+        break
+    fi
     sleep 3
 done
-workflow_state=$(gh api "repos/${owner}/${repo}/actions/workflows/${disabled_workflow}" --jq '.state')
+[ -n "$workflow_state" ] \
+    || die "${owner}/${repo} has no ${disabled_workflow} yet; run this again once GitHub has caught up"
+
+if [ "$workflow_state" = "active" ]; then
+    gh workflow disable "$disabled_workflow" --repo "${owner}/${repo}"
+    workflow_state=$(gh api "$workflow_api" --jq '.state')
+fi
+
 [ "$workflow_state" = "disabled_manually" ] \
     || die "${disabled_workflow} is ${workflow_state} on ${owner}/${repo}; it will run on a closed issue tracker and fail"
 
