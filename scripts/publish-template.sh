@@ -143,8 +143,7 @@ if gh repo view "${owner}/${repo}" > /dev/null 2>&1; then
     [ "$open_prs" = "0" ] \
         || die "${owner}/${repo} has ${open_prs} open pull request(s); answer them before force-pushing over them"
 else
-    gh repo create "${owner}/${repo}" --public \
-        --description "A C++ ${name} template: CMake, CI, sanitizers, static analysis and an installable package. Generated from cpp-boilerplate. 0BSD."
+    gh repo create "${owner}/${repo}" --public
 fi
 
 # HTTPS deliberately. Over SSH the push is made by whichever key the agent
@@ -153,7 +152,19 @@ fi
 git remote add origin "https://${owner}@github.com/${owner}/${repo}.git"
 git push --force --quiet origin main
 
-gh repo edit "${owner}/${repo}" --template
+# Everything about the repository that is not a file, applied on every publish
+# rather than once at creation. A setting that only ran inside `gh repo create`
+# can never be corrected, and can never reach a repository published before it
+# was written - so the second template would silently differ from the first.
+#
+# Issues are off: this repository is force-pushed from somewhere else, so a
+# report filed here is answered by nobody and deleted by the next publish. The
+# README says where it goes instead, in its third line.
+gh repo edit "${owner}/${repo}" \
+    --description "A C++ ${name} template: CMake, CI, sanitizers, static analysis and an installable package. Generated from cpp-boilerplate. 0BSD." \
+    --homepage "https://github.com/${owner}/cpp-boilerplate" \
+    --enable-issues=false \
+    --template
 gh api -X PUT "repos/${owner}/${repo}/topics" \
     -f 'names[]=cpp' -f 'names[]=cpp23' -f 'names[]=cmake' \
     -f 'names[]=template' -f 'names[]=project-template' -f "names[]=${name}" > /dev/null
