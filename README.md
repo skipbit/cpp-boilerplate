@@ -19,7 +19,7 @@ one feature means one header, one implementation and one test.
 | template | for | repository |
 | --- | --- | --- |
 | `lib` | a library other code links against | [skipbit/cpp-boilerplate-lib](https://github.com/skipbit/cpp-boilerplate-lib) |
-| `cli` | a command line tool | planned |
+| `cli` | a command line tool | [skipbit/cpp-boilerplate-cli](https://github.com/skipbit/cpp-boilerplate-cli) |
 | `daemon` | a long-running process | planned |
 | `qt` | a Qt desktop application | planned |
 
