@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   native:
-    name: ${{ matrix.os }} · ${{ matrix.cxx }}
+    name: ${{ matrix.os }} · ${{ matrix.cxx }} · ${{ matrix.stdlib }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -28,21 +28,33 @@ jobs:
       # entries overwrite the compiler for every os instead of multiplying,
       # and the matrix silently shrinks to the last one.
       #
-      # Four combinations rather than every possible one: add to the matrix
-      # when you start caring about a platform this does not cover.
+      # The standard library is a column because it decides more than the
+      # compiler does. clang against libstdc++ and clang against libc++ are two
+      # different sets of C++23, missing different things - and clang picks
+      # libstdc++ by default here, so a project that only builds the default has
+      # not checked the configuration its own escape hatch uses.
+      #
+      # Six combinations rather than every possible one: add to the matrix when
+      # you start caring about a platform this does not cover, and delete the
+      # rows for platforms you have decided not to support.
       matrix:
         include:
-          - { os: ubuntu-24.04, cc: gcc, cxx: g++ }
-          - { os: ubuntu-24.04, cc: clang, cxx: clang++ }
-          - { os: ubuntu-26.04, cc: gcc, cxx: g++ }
-          - { os: ubuntu-26.04, cc: clang, cxx: clang++ }
+          - { os: ubuntu-24.04, cc: gcc, cxx: g++, stdlib: libstdc++ }
+          - { os: ubuntu-24.04, cc: clang, cxx: clang++, stdlib: libstdc++ }
+          - { os: ubuntu-24.04, cc: clang, cxx: clang++, stdlib: libc++ }
+          - { os: ubuntu-26.04, cc: gcc, cxx: g++, stdlib: libstdc++ }
+          - { os: ubuntu-26.04, cc: clang, cxx: clang++, stdlib: libstdc++ }
+          - { os: ubuntu-26.04, cc: clang, cxx: clang++, stdlib: libc++ }
     steps:
       - uses: actions/checkout@v7
 
-      - name: Install Ninja
+      - name: Install ninja, and libc++ where the matrix asks for it
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends ninja-build
+          if [ "${{ matrix.stdlib }}" = "libc++" ]; then
+            sudo apt-get install -y --no-install-recommends libc++-dev libc++abi-dev
+          fi
 
       - name: Record what this job is actually building with
         run: |
@@ -51,10 +63,13 @@ jobs:
 
       - name: Configure
         run: |
+          flags=""
+          if [ "${{ matrix.stdlib }}" = "libc++" ]; then flags="-stdlib=libc++"; fi
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_COMPILER=${{ matrix.cc }} \
             -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
+            -DCMAKE_CXX_FLAGS="$flags" \
             -DCPPBP_WARNINGS_AS_ERRORS=ON
 
       - name: Build
