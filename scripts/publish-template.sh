@@ -161,7 +161,7 @@ git push --force --quiet origin main
 # report filed here is answered by nobody and deleted by the next publish. The
 # README says where it goes instead, in its third line.
 gh repo edit "${owner}/${repo}" \
-    --description "A C++ ${name} template: CMake, CI, sanitizers, static analysis and an installable package. Generated from cpp-boilerplate. 0BSD." \
+    --description "A C++ ${name} template: CMake, CI, sanitizers, static analysis and tests, working from the first commit. Generated from cpp-boilerplate. 0BSD." \
     --homepage "https://github.com/${owner}/cpp-boilerplate" \
     --enable-issues=false \
     --template

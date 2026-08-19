@@ -4,8 +4,8 @@
 ![CMake 3.28+](https://img.shields.io/badge/CMake-3.28%2B-blue.svg)
 ![License 0BSD](https://img.shields.io/badge/license-0BSD-blue.svg)
 
-A C++ command line program that builds, tests, installs and packages itself from
-the first commit. Rename it and start writing.
+A C++ command line program that builds, tests and installs itself from the first
+commit. Rename it and start writing.
 
 Generated from [cpp-boilerplate](https://github.com/skipbit/cpp-boilerplate),
 where the template itself is developed and where issues about it belong.

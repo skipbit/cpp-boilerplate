@@ -9,7 +9,8 @@
 Starting points for C++ projects, so that the first day is spent on the problem
 rather than on CMake.
 
-Each template builds, tests, installs and packages itself from the first commit.
+Each template builds, tests and installs itself from the first commit, and the
+library one packages itself as well.
 Warnings, sanitizers, static analysis and a test framework are already wired in,
 and the structure is meant to be kept: public headers declare, `src/` implements,
 one feature means one header, one implementation and one test.
