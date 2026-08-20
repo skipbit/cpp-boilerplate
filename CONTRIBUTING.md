@@ -155,3 +155,16 @@ No code of conduct, no security policy, no issue templates. They would be
 forms rather than practice at one contributor, and a template with no runtime
 has nowhere to report a vulnerability to. If somebody arrives who needs one,
 that is the moment to write it.
+
+No releases either, and so no `release.yml` in `.github/workflows/`. A `vX.Y.Z`
+tag here would build nothing and publish nothing: what gets released is a
+project somebody started from a template, and this is where the templates are
+written rather than where one is used. `ci/release.yml` is a file this
+repository ships, not one it runs.
+
+Worth knowing before reading `docs/versioning.md`. That document is shared with
+every template and is addressed to the project somebody starts, not to this
+one, so the `.github/workflows/release.yml` it names is the copy a published
+template carries - correct there, absent here. The step that corresponds to a
+release in this repository is `scripts/publish-template.sh`: that force-push is
+how a change reaches anybody.

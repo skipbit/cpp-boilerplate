@@ -2,13 +2,19 @@
 
 ## The short version
 
-Semantic versioning, `MAJOR.MINOR.PATCH`, about the **public API and ABI** -
-not about how much work went into the release.
+Semantic versioning, `MAJOR.MINOR.PATCH`, about **the interface other things
+depend on** - not about how much work went into the release.
 
-- **MAJOR** - existing code that used the previous version stops compiling, or
-  stops linking, or starts behaving differently.
+Which interface that is depends on what you are shipping. A library's is its
+public API and its ABI. A program's is its command line, its exit codes and the
+shape of what it prints, because a script that calls it depends on those
+exactly the way code depends on a header.
+
+- **MAJOR** - something that used the previous version stops working: code that
+  no longer compiles or links, or a command line that is no longer accepted or
+  now means something else.
 - **MINOR** - something was added and everything that worked still works.
-- **PATCH** - a fix that changes no declaration and no layout.
+- **PATCH** - a fix that changes no declaration, no layout and no interface.
 
 A release is a git tag, `vMAJOR.MINOR.PATCH`. Everything else - the GitHub
 release, the notes, the archive - is produced from that tag by
@@ -37,6 +43,10 @@ template**, and neither of those has tags. The version would become
 `0.0.0-unknown` in exactly the situation this project exists to serve.
 
 ## What breaks a C++ library
+
+This section and the next one are the library case. If what you are versioning
+is a program, its equivalent is two sections down, and none of the header rules
+below apply to it.
 
 A C++ library has two contracts, and they break differently. Source
 compatibility is what a recompile needs; binary compatibility is what an
@@ -83,6 +93,26 @@ because semantic versioning puts breaking changes in the MINOR slot while MAJOR
 is zero. With `SameMajorVersion`, `find_package(mylib 0.1)` would accept an
 installed `0.9`, which under that rule is a different library. The switch is
 three lines in `CMakeLists.txt` and it changes on its own when you reach 1.0.0.
+
+A program has neither. It installs one binary, nothing links against it and
+nothing calls `find_package` on it, so its version is carried only by the tag
+and by whatever `--version` prints.
+
+## What breaks a program
+
+Shorter than the library list, and easier to break without noticing, because
+none of it is declared anywhere a compiler can check:
+
+- renaming or removing an option, or changing what it takes
+- changing what happens when an option is absent
+- changing the format of what is printed, if anything reads it
+- changing an exit code, including which failures are given the same one
+- reading from a different place, or writing to one
+
+The output format is the one that gets missed. A column added to a table is a
+MINOR change to a person and a MAJOR one to the `awk` in somebody's pipeline.
+Deciding which of those your output is for, and writing it down, is what makes
+that question answerable at all.
 
 ## When to raise it
 
