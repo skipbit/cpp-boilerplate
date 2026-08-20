@@ -43,11 +43,17 @@ Everything is called `mylib`. Rename it:
 ```
 
 The first covers the namespace, the target, the installed package, the
-generated headers, the naming rule in `.clang-tidy` and the homepage in
-`project()`. The homepage comes from the `origin` remote, or from a second
-argument (`./scripts/rename.sh yourlib https://github.com/you/yourlib`); with
+generated headers and the homepage in `project()`. Not `.clang-tidy`: its rules
+are about case, so there is no name in it to change. The homepage comes from the
+`origin` remote, or from `--url`
+(`./scripts/rename.sh yourlib --url https://github.com/you/yourlib`); with
 neither, the line is deleted rather than left pointing at the template, because
 CMake writes it into the installed SBOM.
+
+`--author "Your Name"` rewrites the copyright line in `LICENSE`, and the year
+with it. It is never taken from your git configuration: a name written there by
+mistake is harder to notice than the template author's still being there, and
+0BSD asks for no attribution either way.
 
 The second points git at `.githooks/`, which runs clang-format, clang-tidy,
 actionlint and shellcheck on the files in a commit; anything not installed is

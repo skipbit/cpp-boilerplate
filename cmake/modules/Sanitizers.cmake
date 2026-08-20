@@ -11,6 +11,15 @@
 # calls compiled into it resolve to nothing. cppbp_sanitizer_flags() exists so
 # that a test which builds a separate consumer can ask what those flags were.
 
+# Declared here rather than in each project's CMakeLists.txt, because this module
+# is what reads them. An option nobody declares still works from the command
+# line, but it is absent from `cmake -LAH` and from ccmake, so the only way to
+# find out it exists is to read the source.
+option(CPPBP_SANITIZE_ADDRESS   "Build with AddressSanitizer" OFF)
+option(CPPBP_SANITIZE_UNDEFINED "Build with UndefinedBehaviorSanitizer" OFF)
+option(CPPBP_SANITIZE_THREAD    "Build with ThreadSanitizer" OFF)
+option(CPPBP_SANITIZE_MEMORY    "Build with MemorySanitizer" OFF)
+
 # Writes the flags implied by the CPPBP_SANITIZE_* options into out_var, or an
 # empty string when none are on. Both compiling and linking need them.
 function(cppbp_sanitizer_flags out_var)
