@@ -5,6 +5,8 @@
 #   include(CompilerWarnings)
 #   cppbp_set_warnings(mylib PRIVATE)
 
+option(CPPBP_WARNINGS_AS_ERRORS "Turn compiler warnings into errors" OFF)
+
 function(cppbp_set_warnings target visibility)
     set(clang_warnings
         -Wall

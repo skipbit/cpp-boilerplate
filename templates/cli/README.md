@@ -49,9 +49,15 @@ Everything is called `mycli`. Rename it:
 ```
 
 The first covers the namespace, both targets, the generated version header, the
-name the program prints in its own messages, and the homepage in `project()`. The homepage comes from the `origin` remote, or
-from a second argument (`./scripts/rename.sh yourtool https://github.com/you/yourtool`);
-with neither, the line is deleted rather than left pointing at the template.
+name the program prints in its own messages, and the homepage in `project()`.
+The homepage comes from the `origin` remote, or from `--url`
+(`./scripts/rename.sh yourtool --url https://github.com/you/yourtool`); with
+neither, the line is deleted rather than left pointing at the template.
+
+`--author "Your Name"` rewrites the copyright line in `LICENSE`, and the year
+with it. It is never taken from your git configuration: a name written there by
+mistake is harder to notice than the template author's still being there, and
+0BSD asks for no attribution either way.
 
 The second points git at `.githooks/`, which runs clang-format, clang-tidy,
 actionlint and shellcheck on the files in a commit; anything not installed is

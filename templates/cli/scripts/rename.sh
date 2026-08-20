@@ -3,7 +3,8 @@
 # Renames the program. Run once, when this becomes your project:
 #
 #   ./scripts/rename.sh yourtool
-#   ./scripts/rename.sh yourtool https://github.com/you/yourtool
+#   ./scripts/rename.sh yourtool --url https://github.com/you/yourtool
+#   ./scripts/rename.sh yourtool --author "Your Name"
 #
 # Covers the namespace, the two targets, the generated version header and the
 # name the program calls itself in its own messages. The uppercase form (CMake
@@ -12,6 +13,9 @@
 # The homepage in project() is covered too. Given no URL, the origin remote is
 # used; with no usable origin either the line is deleted, because a missing
 # homepage is honest and a wrong one is not.
+#
+# --author rewrites the copyright holder in LICENSE. It is never guessed: see
+# where it is done, below.
 
 set -euo pipefail
 
@@ -19,9 +23,10 @@ readonly old="mycli"
 readonly OLD="MYCLI"
 
 usage() {
-    echo "usage: $0 <new-name> [homepage-url]" >&2
-    echo "  new-name:     lowercase, starting with a letter, e.g. wordcount" >&2
-    echo "  homepage-url: an http(s) URL; taken from the origin remote if omitted" >&2
+    echo "usage: $0 <new-name> [--url URL] [--author NAME]" >&2
+    echo "  <new-name>     lowercase, starting with a letter, e.g. wordcount" >&2
+    echo "  --url URL      the project homepage; taken from the origin remote if omitted" >&2
+    echo "  --author NAME  rewrite the copyright holder in LICENSE, and the year with it" >&2
     exit 2
 }
 
@@ -44,9 +49,51 @@ homepage_from_remote() {
     esac
 }
 
-[ $# -ge 1 ] && [ $# -le 2 ] || usage
-new="$1"
-homepage="${2:-}"
+new=""
+homepage=""
+author=""
+year=$(date +%Y)
+readonly year
+
+# One positional argument, the new name, because it is the only required one.
+# Everything optional is a flag: this script is going to grow --description and
+# whatever else a project needs stamped into it, and a second, third and fourth
+# positional argument is a calling convention nobody can read at the call site.
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --url)
+            [ $# -ge 2 ] && [ -n "$2" ] || { echo "error: --url needs a value" >&2; usage; }
+            homepage=$2
+            shift 2
+            ;;
+        --author)
+            [ $# -ge 2 ] && [ -n "$2" ] || { echo "error: --author needs a name" >&2; usage; }
+            author=$2
+            shift 2
+            ;;
+        -h | --help)
+            usage
+            ;;
+        -*)
+            echo "error: unknown option '$1'" >&2
+            usage
+            ;;
+        *)
+            if [ -n "$new" ]; then
+                echo "error: unexpected argument '$1'" >&2
+                # The homepage used to be the second positional argument.
+                case "$1" in
+                    http://* | https://*) echo "the homepage is an option now: --url $1" >&2 ;;
+                esac
+                usage
+            fi
+            new=$1
+            shift
+            ;;
+    esac
+done
+
+[ -n "$new" ] || usage
 
 if ! [[ "$new" =~ ^[a-z][a-z0-9_]*$ ]]; then
     echo "error: '$new' must be lowercase and start with a letter" >&2
@@ -101,6 +148,23 @@ else
     sed -i '/^[[:space:]]*HOMEPAGE_URL[[:space:]]/d' CMakeLists.txt
 fi
 
+# Only when asked for. Taking the name from git config would write whoever is
+# sitting at this machine onto a repository that may be published under an
+# organisation's name, and a confidently wrong attribution is harder to notice
+# than the template author's name still being there. 0BSD requires no
+# attribution, so the cost of leaving it alone is that it looks wrong, not that
+# it is a licence problem.
+if [ -n "$author" ]; then
+    grep -q '^Copyright (c) ' LICENSE \
+        || { echo "error: LICENSE has no copyright line to rewrite" >&2; exit 1; }
+    # Through the environment rather than awk -v: awk expands backslash escapes
+    # in a -v value, and a person's name is not an escape sequence.
+    CPPBP_COPYRIGHT="Copyright (c) ${year} ${author}" \
+        awk '/^Copyright \(c\) / && !seen { print ENVIRON["CPPBP_COPYRIGHT"]; seen = 1; next } { print }' \
+            LICENSE > LICENSE.new
+    mv LICENSE.new LICENSE
+fi
+
 # Nothing to move: a program installs no headers, so no directory is named after
 # it. The one generated header lives under a directory CMake creates from the
 # name it has just been given.
@@ -111,9 +175,18 @@ if [ -n "$homepage" ]; then
 else
     echo "Homepage: removed - no URL given, and origin has none this script could read."
 fi
+if [ -n "$author" ]; then
+    echo "LICENSE: Copyright (c) ${year} ${author}"
+fi
 echo
 echo "Next:"
-echo "  - rewrite README.md for your program, and LICENSE if you want your name on it"
+if [ -z "$author" ]; then
+    echo "  - LICENSE still names whoever wrote the template. Pass --author to put"
+    echo "    your own name there, or edit the one line by hand. 0BSD asks for no"
+    echo "    attribution, so this is a matter of it being wrong, not unlicensed"
+fi
+echo "  - README.md is still about the template: its badge URL says YOU/YOURS, and"
+echo "    'Make it yours' is the instructions you have just finished following"
 if [ -z "$homepage" ]; then
     echo "  - put HOMEPAGE_URL back in project() once this has a home to point at"
 fi

@@ -2,6 +2,8 @@
 # same way a compile error does. It is opt-in: a contributor without clang-tidy
 # installed can still build, while the tidy preset and CI always turn it on.
 
+option(CPPBP_ENABLE_CLANG_TIDY "Run clang-tidy as part of the compile step" OFF)
+
 # Defined either way, so that a CMakeLists.txt can call it unconditionally.
 if(NOT CPPBP_ENABLE_CLANG_TIDY)
     function(cppbp_enable_clang_tidy target)

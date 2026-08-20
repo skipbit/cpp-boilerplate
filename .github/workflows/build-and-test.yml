@@ -134,9 +134,14 @@ jobs:
             cmake --build /tmp/tidy
           '
 
+      # The four extensions are the ones .githooks/pre-commit checks; change both
+      # together, or the hook stops a contributor from committing something this
+      # job would have let through, or the other way round.
       - name: Check formatting
         run: |
           docker run --rm -v "$PWD":/src:ro cpp-boilerplate-toolchain:ci bash -euxc '
             cd /src
-            find templates -name "*.cpp" -o -name "*.hpp" | xargs clang-format --dry-run --Werror
+            find . \( -name .git -o -name build -o -name out \) -prune -o \
+                 \( -name "*.cpp" -o -name "*.hpp" -o -name "*.h" -o -name "*.cc" \) -print \
+              | xargs clang-format --dry-run --Werror
           '
