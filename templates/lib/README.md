@@ -96,7 +96,7 @@ to `target_sources` in `CMakeLists.txt`.
   library that passes its own tests can still be impossible to use; this is the
   check that notices.
 - **An SBOM** in SPDX 3.0.1, off by default (`-DMYLIB_GENERATE_SBOM=ON`, needs
-  CMake 4.3+).
+  CMake 4.3+, experimental).
 - **Workflows**: `pr-check` and `main-check` run the matrix, the pinned build
   and the static analysis; `nightly-sanitizer` runs the address and thread
   builds overnight; `release` turns a `vX.Y.Z` tag into a GitHub release;
