@@ -54,15 +54,29 @@ and not on the whole tree:
 | tool | on | needs |
 | --- | --- | --- |
 | clang-format | `*.cpp` `*.hpp` `*.h` `*.cc` | - |
-| clang-tidy | the same, one at a time | a `tidy` build to read the flags from: `cmake --preset tidy` |
+| clang-tidy | `*.cpp` `*.cc`, one at a time | a `tidy` build to read the flags from: `cmake --preset tidy` |
 | actionlint | `.github/workflows/*.yml`, `ci/*.yml` | - |
 | shellcheck | `*.sh`, `.githooks/*` | - |
 | `scripts/check-tidy-rationale.sh` | `.clang-tidy`, `docs/coding-style.md` | - |
+
+Those patterns are written once, in `scripts/lint-paths.sh`, and the hook and
+the CI job both ask it rather than carrying a copy. The second column above is
+a description of that file, not a second definition of it - when they disagree,
+the file is right. Two lists drift the way this one did: the hook checked `.h`
+and `.cc` for months while the formatting job did not, so a file could pass a
+commit that no job would ever have contradicted.
 
 A tool that is not installed is skipped and said out loud, rather than treated
 as a failure: a hook that refuses your commit because you have not installed
 clang-format is a hook you will delete. `git commit --no-verify` bypasses it
 once.
+
+**CI does not skip.** All four tools are in the pinned image, the jobs run them
+without asking whether they exist, and a checker that matched no files fails the
+job rather than passing quietly - a check with nothing to do and a check that
+found nothing look identical from outside, and only one of them is good news.
+That is also why the versions are pinned: the `shellcheck` your distribution
+ships is not necessarily the one deciding whether this is green.
 
 The last row is the one that surprises people. Every check switched off in
 `.clang-tidy` has to have its reason written down in `docs/coding-style.md`,

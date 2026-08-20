@@ -42,6 +42,7 @@ readonly shared=(
     docs
     scripts/check-tidy-rationale.sh
     scripts/install-hooks.sh
+    scripts/lint-paths.sh
     scripts/release.sh
 )
 
