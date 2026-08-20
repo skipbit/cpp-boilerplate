@@ -149,6 +149,17 @@ Which gives the order: add the row and commit it, publish the template, then
 push this repository. The other way round puts a link into the published README
 that leads to a repository that does not exist yet.
 
+`distribution-check.yml` runs after every push to `main` and asks, for each
+directory under `templates/`, whether the repository it is published to still
+matches what would be assembled now. It is the third badge in `README.md`.
+
+That badge is red for as long as `main` contains a change to a distributed file
+that has not been published, which is exactly as long as people are being given
+the older thing. So red is a fact rather than a fault, and the fix is a publish
+rather than a narrower comparison. It is not part of `pr-check`: a pull request
+cannot be published from, so failing one on this would only teach people to
+ignore it.
+
 ## What this repository does not have
 
 No code of conduct, no security policy, no issue templates. They would be

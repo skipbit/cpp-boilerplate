@@ -1,0 +1,97 @@
+# Guards the one claim this repository makes that its own CI cannot see: that
+# what people are given is what is here.
+#
+# publish-template.sh is run by hand, and nothing noticed the gap between a
+# change landing on main and somebody remembering to publish it. So main could
+# be green while everyone who pressed Use this template was reading something
+# older - a build passing on code nobody has been given yet, which is the same
+# shape as a preset nothing runs.
+#
+# Red means the published templates are behind. That is a true statement about
+# the world rather than a broken job: it stays red from the moment a distributed
+# file changes until the next publish, which is exactly how long users are
+# looking at the older thing. Do not narrow the comparison to keep it green.
+#
+# Not in ci/, deliberately. A published template has no business reporting on
+# this repository's publishing, and its README becomes somebody's own product
+# README, where a badge about somebody else's release cadence is noise.
+name: distribution check
+
+on:
+  push:
+    branches: [main]
+  # A published repository can also drift without anything happening here.
+  schedule:
+    - cron: "0 7 * * 1" # Mondays, 07:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  published:
+    name: every template matches what is published
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      # Which templates exist is read from the directory, and the repository
+      # each is published to is derived from this one's name. Neither is written
+      # out: a template added here and forgotten in a list written here is the
+      # failure this job exists to catch.
+      #
+      # The tree comes from publish-template.sh rather than from rules repeated
+      # here, because a second copy of "what a published template contains" is a
+      # second thing to keep in step, and this job would then pass by agreeing
+      # with itself.
+      - name: Compare each template with the repository it is published to
+        run: |
+          set -euo pipefail
+
+          behind=""
+          {
+            echo "| template | published as | state |"
+            echo "| --- | --- | --- |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          for dir in templates/*/; do
+            name=$(basename "$dir")
+            repo="${{ github.repository }}-$name"
+            assembled="$RUNNER_TEMP/assembled-$name"
+            published="$RUNNER_TEMP/published-$name"
+
+            echo "::group::$name"
+            ./scripts/publish-template.sh "$name" --assemble-to "$assembled"
+
+            if ! git clone -q --depth 1 "https://github.com/${repo}.git" "$published"; then
+              echo "::error::${name} has never been published: ${repo} does not exist. Run scripts/publish-template.sh ${name} --push"
+              behind="$behind $name"
+              printf '| %s | %s | never published |\n' "$name" "$repo" >> "$GITHUB_STEP_SUMMARY"
+              echo "::endgroup::"
+              continue
+            fi
+
+            # Put the assembly where the published tree was and ask git. That is
+            # the same question the publish itself asks - git add -A of this
+            # tree against what is committed there - so the executable bit and
+            # .gitignore are handled the same way here as there.
+            find "$published" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+            cp -a "$assembled/." "$published/"
+
+            drift=$(git -C "$published" status --porcelain)
+            if [ -n "$drift" ]; then
+              echo "$drift"
+              echo "::error::${name} is behind: ${repo} does not match this commit. Run scripts/publish-template.sh ${name} --push"
+              behind="$behind $name"
+              printf '| %s | %s | behind by %s file(s) |\n' "$name" "$repo" "$(printf '%s\n' "$drift" | wc -l)" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "${name}: ${repo} matches this commit"
+              printf '| %s | %s | up to date |\n' "$name" "$repo" >> "$GITHUB_STEP_SUMMARY"
+            fi
+            echo "::endgroup::"
+          done
+
+          if [ -n "$behind" ]; then
+            echo "Behind:${behind}"
+            exit 1
+          fi

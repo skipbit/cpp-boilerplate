@@ -2,8 +2,14 @@
 #
 # Assembles a template into its own repository and publishes it.
 #
-#   ./scripts/publish-template.sh lib            # assemble, report, throw away
-#   ./scripts/publish-template.sh lib --push     # assemble and publish
+#   ./scripts/publish-template.sh lib                    # assemble, report, throw away
+#   ./scripts/publish-template.sh lib --push             # assemble and publish
+#   ./scripts/publish-template.sh lib --assemble-to DIR  # leave the tree in DIR
+#
+# --assemble-to stops after assembling: no build, no commit, no push. It exists
+# so that something else can look at the tree - distribution-check.yml compares
+# it with what is actually published - without that comparison growing its own
+# copy of the rules below, which is how the two would come to disagree.
 #
 # The published repository is a build product, not a fork: it is force-pushed
 # from what is here. A template directory alone is not enough to publish -
@@ -47,9 +53,18 @@ readonly workflow_source="ci"
 die() { echo "error: $*" >&2; exit 1; }
 
 name=${1:-}
-[ -n "$name" ] || die "usage: $0 <template-name> [--push]"
+[ -n "$name" ] || die "usage: $0 <template-name> [--push | --assemble-to <dir>]"
 push=false
-[ "${2:-}" = "--push" ] && push=true
+assemble_to=""
+case "${2:-}" in
+    "") ;;
+    --push) push=true ;;
+    --assemble-to)
+        assemble_to=${3:-}
+        [ -n "$assemble_to" ] || die "--assemble-to needs a directory"
+        ;;
+    *) die "unknown argument '${2}'" ;;
+esac
 
 root=$(cd "$(dirname "$0")/.." && pwd)
 src="$root/templates/$name"
@@ -57,7 +72,9 @@ src="$root/templates/$name"
 
 repo="cpp-boilerplate-$name"
 source_commit=$(git -C "$root" rev-parse --short HEAD)
-if [ -n "$(git -C "$root" status --porcelain)" ]; then
+# Not required for --assemble-to: nothing is recorded and nothing is published,
+# so there is no claim for a dirty tree to make false.
+if [ -z "$assemble_to" ] && [ -n "$(git -C "$root" status --porcelain)" ]; then
     die "the working tree is dirty; publish from a committed state so the record means something"
 fi
 
@@ -92,6 +109,16 @@ done
 for f in "$root/$workflow_source"/*.yml; do
     add_shared "$f" ".github/workflows/$(basename "$f")"
 done
+
+# Handing over the tree is the whole job in this mode. Deliberately before the
+# build below: what is published is a set of files, so what gets compared with
+# what is published is that same set of files and nothing derived from it.
+if [ -n "$assemble_to" ]; then
+    mkdir -p "$assemble_to"
+    cp -a "$work/." "$assemble_to/"
+    echo "Assembled ${repo} from cpp-boilerplate@${source_commit} into ${assemble_to}"
+    exit 0
+fi
 
 cd "$work"
 
