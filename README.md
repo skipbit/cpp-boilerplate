@@ -2,6 +2,7 @@
 
 [![main check](https://github.com/skipbit/cpp-boilerplate/actions/workflows/main-check.yml/badge.svg)](https://github.com/skipbit/cpp-boilerplate/actions/workflows/main-check.yml)
 [![nightly sanitizer](https://github.com/skipbit/cpp-boilerplate/actions/workflows/nightly-sanitizer.yml/badge.svg)](https://github.com/skipbit/cpp-boilerplate/actions/workflows/nightly-sanitizer.yml)
+[![distribution check](https://github.com/skipbit/cpp-boilerplate/actions/workflows/distribution-check.yml/badge.svg)](https://github.com/skipbit/cpp-boilerplate/actions/workflows/distribution-check.yml)
 ![C++23](https://img.shields.io/badge/C%2B%2B-23-blue.svg)
 ![CMake 3.28+](https://img.shields.io/badge/CMake-3.28%2B-blue.svg)
 ![License 0BSD](https://img.shields.io/badge/license-0BSD-blue.svg)
