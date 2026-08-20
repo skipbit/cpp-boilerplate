@@ -18,6 +18,16 @@ on:
 permissions:
   contents: read
 
+# `shell: bash` is not the shell a run step gets by default. The default is
+# `bash -e`; naming it explicitly gets `bash -eo pipefail`, so a command that
+# fails on the left of a pipe fails the step instead of being overwritten by
+# whatever came after it. Set once for the workflow rather than per step,
+# because the flags belong to the shell, not to whichever commands happen to be
+# in it today - a step added next month gets them without anybody remembering.
+defaults:
+  run:
+    shell: bash
+
 jobs:
   native:
     name: ${{ matrix.os }} · ${{ matrix.cxx }} · ${{ matrix.stdlib }}
@@ -115,7 +125,7 @@ jobs:
         run: |
           sbom=$(grep -oE '[A-Za-z0-9_]+_GENERATE_SBOM' CMakeLists.txt | head -1 || true)
           echo "SBOM option: ${sbom:-none declared in CMakeLists.txt}"
-          docker run --rm -v "$PWD":/src:ro -e SBOM="$sbom" toolchain:ci bash -euxc '
+          docker run --rm -v "$PWD":/src:ro -e SBOM="$sbom" toolchain:ci bash -euxo pipefail -c '
             cmake --version | head -1
             cmake -S /src -B /tmp/build -G Ninja \
               -DCMAKE_BUILD_TYPE=Release \
@@ -159,7 +169,7 @@ jobs:
 
       - name: Run clang-tidy as part of the build
         run: |
-          docker run --rm -v "$PWD":/src:ro toolchain:ci bash -euxc '
+          docker run --rm -v "$PWD":/src:ro toolchain:ci bash -euxo pipefail -c '
             cmake -S /src -B /tmp/tidy -G Ninja \
               -DCMAKE_BUILD_TYPE=Debug \
               -DCMAKE_C_COMPILER=clang \
@@ -186,7 +196,7 @@ jobs:
           [ ${#files[@]} -gt 0 ] || { echo "::error::no files matched"; exit 1; }
           echo "clang-format: ${#files[@]} file(s)"
           docker run --rm -v "$PWD":/src:ro toolchain:ci \
-            bash -euc 'cd /src && exec clang-format --dry-run --Werror "$@"' -- "${files[@]}"
+            bash -euo pipefail -c 'cd /src && exec clang-format --dry-run --Werror "$@"' -- "${files[@]}"
 
       # No `command -v` here. The hook skips a checker it cannot find, because a
       # hook that blocks a commit over a missing tool is a hook people delete;
@@ -199,7 +209,7 @@ jobs:
           [ ${#files[@]} -gt 0 ] || { echo "::error::no files matched"; exit 1; }
           echo "shellcheck: ${#files[@]} file(s)"
           docker run --rm -v "$PWD":/src:ro toolchain:ci \
-            bash -euc 'cd /src && exec shellcheck "$@"' -- "${files[@]}"
+            bash -euo pipefail -c 'cd /src && exec shellcheck "$@"' -- "${files[@]}"
 
       # actionlint reads .github/actionlint.yml from the working directory, so
       # this has to run with the repository as its cwd rather than by path.
@@ -209,4 +219,4 @@ jobs:
           [ ${#files[@]} -gt 0 ] || { echo "::error::no files matched"; exit 1; }
           echo "actionlint: ${#files[@]} file(s)"
           docker run --rm -v "$PWD":/src:ro toolchain:ci \
-            bash -euc 'cd /src && exec actionlint "$@"' -- "${files[@]}"
+            bash -euo pipefail -c 'cd /src && exec actionlint "$@"' -- "${files[@]}"

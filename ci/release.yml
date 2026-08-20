@@ -19,6 +19,16 @@ on:
 permissions:
   contents: read
 
+# `shell: bash` is not the shell a run step gets by default. The default is
+# `bash -e`; naming it explicitly gets `bash -eo pipefail`, so a command that
+# fails on the left of a pipe fails the step instead of being overwritten by
+# whatever came after it. Set once for the workflow rather than per step,
+# because the flags belong to the shell, not to whichever commands happen to be
+# in it today - a step added next month gets them without anybody remembering.
+defaults:
+  run:
+    shell: bash
+
 jobs:
   version:
     name: the tag matches the source
@@ -68,7 +78,7 @@ jobs:
           sbom=$(grep -oE '[A-Za-z0-9_]+_GENERATE_SBOM' CMakeLists.txt | head -1 || true)
           echo "SBOM option: ${sbom:-none declared in CMakeLists.txt}"
           docker run --rm -v "$PWD":/src:ro -v "$PWD/stage":/stage \
-            -e SBOM="$sbom" -e ARCHIVE="$ARCHIVE" toolchain:ci bash -euxc '
+            -e SBOM="$sbom" -e ARCHIVE="$ARCHIVE" toolchain:ci bash -euxo pipefail -c '
             cmake -S /src -B /tmp/build -G Ninja \
               -DCMAKE_BUILD_TYPE=Release \
               -DCPPBP_WARNINGS_AS_ERRORS=ON \
