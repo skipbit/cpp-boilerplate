@@ -38,6 +38,14 @@ ARG ACTIONLINT_VERSION=1.7.12
 
 ENV DEBIAN_FRONTEND=noninteractive
 
+# RUN is /bin/sh -c unless this says otherwise, and /bin/sh has no pipefail: a
+# pipeline is judged by its last command alone. Two of the lines below fetch a
+# signing key and pipe it into gpg, and gpg is perfectly happy to dearmor an
+# empty stream - so a failed download would have produced an empty keyring and a
+# successful build. Named here once rather than guarded at each pipe, for the
+# same reason the workflows set it on the shell rather than per step.
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates gnupg wget \
  && wget -qO- https://apt.kitware.com/keys/kitware-archive-latest.asc \

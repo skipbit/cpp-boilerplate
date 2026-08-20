@@ -19,6 +19,16 @@ on:
 permissions:
   contents: read
 
+# `shell: bash` is not the shell a run step gets by default. The default is
+# `bash -e`; naming it explicitly gets `bash -eo pipefail`, so a command that
+# fails on the left of a pipe fails the step instead of being overwritten by
+# whatever came after it. Set once for the workflow rather than per step,
+# because the flags belong to the shell, not to whichever commands happen to be
+# in it today - a step added next month gets them without anybody remembering.
+defaults:
+  run:
+    shell: bash
+
 jobs:
   presets:
     name: every preset, end to end
