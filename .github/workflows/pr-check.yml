@@ -1,9 +1,16 @@
 # Guards the main branch against changes that do not build, test or lint.
+#
+# Every pull request, whatever its base. A base filter here reads as a narrowing
+# and behaves as a hole: a pull request against a branch it does not list runs
+# no job at all, and GitHub reports that as mergeable and clean rather than as
+# unchecked - "nothing ran" and "everything passed" look the same on the page.
+# One was merged here having never run a single job. The filter is gone rather
+# than extended, because the next branch to be missing from it is the one
+# nobody thought to add.
 name: pr check
 
 on:
   pull_request:
-    branches: [main]
 
 permissions:
   contents: read
