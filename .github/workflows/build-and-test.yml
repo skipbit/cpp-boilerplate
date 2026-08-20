@@ -134,14 +134,45 @@ jobs:
             cmake --build /tmp/tidy
           '
 
-      # The four extensions are the ones .githooks/pre-commit checks; change both
-      # together, or the hook stops a contributor from committing something this
-      # job would have let through, or the other way round.
+      # Which files each of these three runs on comes from
+      # scripts/lint-paths.sh, which .githooks/pre-commit asks the same question
+      # of. One list, so the hook cannot check an extension this job does not -
+      # which it did, over .h and .cc, and a file could pass a commit that no
+      # job would ever have disagreed with.
+      #
+      # The list is worked out here rather than inside the container: it is read
+      # from the git index, and git inside a container refuses a bind mount it
+      # does not own as an unsafe repository.
+      #
+      # Matching nothing is a failure, not a pass. A check that silently has no
+      # work is indistinguishable from one that found none.
       - name: Check formatting
         run: |
-          docker run --rm -v "$PWD":/src:ro cpp-boilerplate-toolchain:ci bash -euxc '
-            cd /src
-            find . \( -name .git -o -name build -o -name out \) -prune -o \
-                 \( -name "*.cpp" -o -name "*.hpp" -o -name "*.h" -o -name "*.cc" \) -print \
-              | xargs clang-format --dry-run --Werror
-          '
+          mapfile -t files < <(./scripts/lint-paths.sh clang-format)
+          [ ${#files[@]} -gt 0 ] || { echo "::error::no files matched"; exit 1; }
+          echo "clang-format: ${#files[@]} file(s)"
+          docker run --rm -v "$PWD":/src:ro cpp-boilerplate-toolchain:ci \
+            bash -euc 'cd /src && exec clang-format --dry-run --Werror "$@"' -- "${files[@]}"
+
+      # No `command -v` here. The hook skips a checker it cannot find, because a
+      # hook that blocks a commit over a missing tool is a hook people delete;
+      # a job that skips one is a job that reports nothing and looks the same as
+      # one that passed. Both are in the pinned image, and if they stop being
+      # there this has to fail.
+      - name: Check the shell scripts
+        run: |
+          mapfile -t files < <(./scripts/lint-paths.sh shellcheck)
+          [ ${#files[@]} -gt 0 ] || { echo "::error::no files matched"; exit 1; }
+          echo "shellcheck: ${#files[@]} file(s)"
+          docker run --rm -v "$PWD":/src:ro cpp-boilerplate-toolchain:ci \
+            bash -euc 'cd /src && exec shellcheck "$@"' -- "${files[@]}"
+
+      # actionlint reads .github/actionlint.yml from the working directory, so
+      # this has to run with the repository as its cwd rather than by path.
+      - name: Check the workflows
+        run: |
+          mapfile -t files < <(./scripts/lint-paths.sh actionlint)
+          [ ${#files[@]} -gt 0 ] || { echo "::error::no files matched"; exit 1; }
+          echo "actionlint: ${#files[@]} file(s)"
+          docker run --rm -v "$PWD":/src:ro cpp-boilerplate-toolchain:ci \
+            bash -euc 'cd /src && exec actionlint "$@"' -- "${files[@]}"

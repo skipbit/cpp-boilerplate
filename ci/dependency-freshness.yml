@@ -56,6 +56,13 @@ jobs:
             echo "Nothing links CLI11::CLI11 here, so its pin is not this project's problem."
           fi
 
+          # --- actionlint: a release binary, so neither apt nor Dependabot sees it ---
+          actionlint_pinned=$(grep -oP 'ARG ACTIONLINT_VERSION=\K.*' .devcontainer/Dockerfile)
+          actionlint_current=$(gh api repos/rhysd/actionlint/releases \
+            --jq '[.[] | select(.prerelease == false) | .tag_name][0]' | sed 's/^v//')
+          [ "$actionlint_pinned" = "$actionlint_current" ] \
+            || note actionlint "$actionlint_pinned" "$actionlint_current"
+
           # --- apt pins inside the image: ask the repositories themselves ---
           cmake_pinned=$(grep -oP 'ARG CMAKE_VERSION=\K.*' .devcontainer/Dockerfile)
           clang_pinned=$(grep -oP 'ARG CLANG_VERSION=\K.*' .devcontainer/Dockerfile)

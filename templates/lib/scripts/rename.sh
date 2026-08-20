@@ -68,12 +68,18 @@ readonly year
 while [ $# -gt 0 ]; do
     case "$1" in
         --url)
-            [ $# -ge 2 ] && [ -n "$2" ] || { echo "error: --url needs a value" >&2; usage; }
+            if [ $# -lt 2 ] || [ -z "$2" ]; then
+                echo "error: --url needs a value" >&2
+                usage
+            fi
             homepage=$2
             shift 2
             ;;
         --author)
-            [ $# -ge 2 ] && [ -n "$2" ] || { echo "error: --author needs a name" >&2; usage; }
+            if [ $# -lt 2 ] || [ -z "$2" ]; then
+                echo "error: --author needs a name" >&2
+                usage
+            fi
             author=$2
             shift 2
             ;;
