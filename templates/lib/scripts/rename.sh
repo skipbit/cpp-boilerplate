@@ -6,8 +6,11 @@
 #   ./scripts/rename.sh yourlib https://github.com/you/yourlib
 #
 # Covers the namespace, the target, the installed package, the generated
-# headers, the include directory and the naming rule in .clang-tidy. The
-# uppercase form (export macros, CMake options) follows automatically.
+# headers and the include directory. The uppercase form (export macros, CMake
+# options) follows automatically.
+#
+# Not .clang-tidy: its naming rules are about case, not about this project, so
+# there is nothing in it to rename.
 #
 # The homepage in project() is covered too, and it is not decoration: CMake
 # writes PROJECT_HOMEPAGE_URL into the installed SBOM, so a copy that keeps the
