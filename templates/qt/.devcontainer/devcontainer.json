@@ -1,0 +1,27 @@
+{
+  // Named after the directory it is opened from, so that this file needs no
+  // edit when a template becomes somebody's project.
+  "name": "${localWorkspaceFolderBasename}",
+  "build": { "dockerfile": "Dockerfile" },
+  // Git does not run hooks that arrive with a clone. This is the opt-in.
+  "postCreateCommand": "./scripts/install-hooks.sh",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.cpptools",
+        "ms-vscode.cmake-tools",
+        "llvm-vs-code-extensions.vscode-clangd"
+      ],
+      "settings": {
+        "cmake.configureOnOpen": false
+      }
+    }
+  },
+  // The X11 socket and DISPLAY, so a window opened in the container appears on
+  // the host. Without them the application still builds and its tests still
+  // run - they use the offscreen platform - but you cannot look at it.
+  "runArgs": [
+    "--volume=/tmp/.X11-unix:/tmp/.X11-unix",
+    "--env=DISPLAY"
+  ]
+}

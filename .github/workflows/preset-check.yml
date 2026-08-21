@@ -45,7 +45,17 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            ninja-build clang clang-tidy libc++-dev libc++abi-dev
+            ninja-build clang clang-tidy libc++-dev libc++abi-dev \
+            qt6-base-dev \
+            qt6-declarative-dev \
+            qml6-module-qtqml \
+            qml6-module-qtqml-models \
+            qml6-module-qtqml-workerscript \
+            qml6-module-qtquick \
+            qml6-module-qtquick-controls \
+            qml6-module-qtquick-layouts \
+            qml6-module-qtquick-templates \
+            qml6-module-qtquick-window
 
       - name: Record what this job is actually building with
         run: |
@@ -75,9 +85,15 @@ jobs:
             echo "| --- | --- |"
           } >> "$GITHUB_STEP_SUMMARY"
 
+          # Every template, including the one that needs Qt - except under the
+          # preset that builds against libc++, which the Qt a distribution
+          # ships cannot be linked into. templates/qt/README.md has the
+          # measurements.
           while IFS= read -r preset; do
             echo "::group::$preset"
-            cmake --preset "$preset"
+            qt=ON
+            if [ "$preset" = "clang-libc++" ]; then qt=OFF; fi
+            cmake --preset "$preset" -DCPPBP_BUILD_QT="$qt"
             cmake --build --preset "$preset"
 
             # A configure preset does not have to have tests to run: tidy has
@@ -85,7 +101,7 @@ jobs:
             # Which ones do is asked of cmake as well, so that a test preset
             # added later starts running without anybody editing this.
             if printf '%s\n' "$test_presets" | grep -qxF -- "$preset"; then
-              ctest --preset "$preset"
+              QT_QPA_PLATFORM=offscreen ctest --preset "$preset"
               ran="run"
             else
               echo "no test preset named \"$preset\"; nothing to run"

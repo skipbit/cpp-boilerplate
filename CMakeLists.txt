@@ -46,6 +46,8 @@ set(MYCLI_BUILD_TESTING ${CPPBP_BUILD_TESTING})
 set(MYCLI_INSTALL ON)
 set(MYDAEMON_BUILD_TESTING ${CPPBP_BUILD_TESTING})
 set(MYDAEMON_INSTALL ON)
+set(MYAPP_BUILD_TESTING ${CPPBP_BUILD_TESTING})
+set(MYAPP_INSTALL ON)
 
 if(CPPBP_BUILD_LIB)
     add_subdirectory(templates/lib)
@@ -57,4 +59,8 @@ endif()
 
 if(CPPBP_BUILD_DAEMON)
     add_subdirectory(templates/daemon)
+endif()
+
+if(CPPBP_BUILD_QT)
+    add_subdirectory(templates/qt)
 endif()

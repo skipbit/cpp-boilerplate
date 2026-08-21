@@ -1,0 +1,10 @@
+# Generated from desktop/myapp.desktop.in by CMake, and installed with the
+# program. Edit the template rather than the copy.
+
+[Desktop Entry]
+Type=Application
+Name=@PROJECT_NAME@
+Comment=@PROJECT_DESCRIPTION@
+Exec=@CMAKE_INSTALL_FULL_BINDIR@/@PROJECT_NAME@
+Terminal=false
+Categories=Utility;
