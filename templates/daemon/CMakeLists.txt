@@ -54,7 +54,8 @@ add_library(mydaemon_lib STATIC
     src/options.cpp
     src/service.cpp
     src/shutdown.cpp
-    src/task.cpp)
+    src/task.cpp
+    src/unique_fd.cpp)
 
 target_include_directories(mydaemon_lib PUBLIC
     "${CMAKE_CURRENT_LIST_DIR}/src"

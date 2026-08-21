@@ -1,3 +1,4 @@
+#include <chrono>
 #include <exception>
 #include <iostream>
 #include <optional>
@@ -22,8 +23,13 @@ int main(int argc, char** argv)
             return parsed.status;
         }
 
-        // First, so that nothing arrives before it is blocked.
-        mydaemon::shutdown::block();
+        // First, so that no signal is delivered the old way before this takes
+        // them over.
+        mydaemon::shutdown::Watcher signals;
+
+        const auto wait = [&signals](std::chrono::milliseconds limit) {
+            return signals.wait(limit);
+        };
 
         // std::cerr rather than std::clog: it flushes on every write, so a line
         // is in the journal when it was written rather than when the buffer
@@ -42,13 +48,7 @@ int main(int argc, char** argv)
             return reread.options;
         };
 
-        const mydaemon::service::Environment environment{
-            .wait = mydaemon::shutdown::wait,
-            .report = report,
-            .reload = reload,
-        };
-
-        mydaemon::service::run(parsed.options, environment);
+        mydaemon::service::run(parsed.options, {.wait = wait, .report = report, .reload = reload});
         return 0;
     } catch (const std::exception& error) {
         std::cerr << "mydaemon: " << error.what() << '\n';

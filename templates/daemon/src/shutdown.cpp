@@ -1,25 +1,25 @@
 #include "shutdown.hpp"
 
+#include <algorithm>
 #include <cerrno>
 #include <chrono>
-#include <ctime>
+#include <csignal>
+#include <limits>
 #include <system_error>
 
-// signal.h rather than <csignal>: POSIX puts sigtimedwait, pthread_sigmask and
-// the rest of what is used here in that header, and <csignal> is only required
-// to provide the C subset, which none of them is in.
-#include <signal.h>  // NOLINT(modernize-deprecated-headers,hicpp-deprecated-headers)
+#include <sys/poll.h>
+#include <sys/signalfd.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include "service.hpp"
+#include "unique_fd.hpp"
 
 namespace mydaemon::shutdown {
 
 namespace {
 
-// The two NOLINTs here and below are one thing: glibc declares sigset_t and
-// siginfo_t in a private bits/ header, so clang-tidy's include-cleaner has no
-// public header to be told to include. There is nothing to fix.
-auto watched() -> sigset_t  // NOLINT(misc-include-cleaner)
+auto watched() -> sigset_t
 {
     sigset_t set{};
     sigemptyset(&set);
@@ -31,40 +31,50 @@ auto watched() -> sigset_t  // NOLINT(misc-include-cleaner)
 
 }  // namespace
 
-void block()
+Watcher::Watcher()
 {
-    const sigset_t set = watched();
+    const sigset_t wanted = watched();
 
-    // pthread_sigmask rather than sigprocmask: what the latter does in a process
-    // with more than one thread is unspecified. Doing it here, before any thread
-    // exists, is also what makes every thread started later inherit it.
-    const int failure = pthread_sigmask(SIG_BLOCK, &set, nullptr);
-    if (failure != 0) {
+    // Blocked before the descriptor exists, so nothing is delivered the old way
+    // in between. pthread_sigmask rather than sigprocmask: what the latter does
+    // in a process with more than one thread is unspecified, and doing it here,
+    // before any thread exists, is what makes every later thread inherit it.
+    if (const int failure = pthread_sigmask(SIG_BLOCK, &wanted, nullptr); failure != 0) {
         throw std::system_error(failure, std::generic_category(), "blocking the signals this process answers");
+    }
+
+    descriptor_ = UniqueFd{signalfd(-1, &wanted, SFD_CLOEXEC)};
+    if (! descriptor_.valid()) {
+        throw std::system_error(errno, std::generic_category(), "opening a descriptor to read signals from");
     }
 }
 
-auto wait(std::chrono::milliseconds limit) -> service::Wakeup
+auto Watcher::wait(std::chrono::milliseconds limit) -> service::Wakeup
 {
-    const sigset_t set = watched();
-    const auto whole_seconds = std::chrono::duration_cast<std::chrono::seconds>(limit);
-
-    std::timespec timeout{};
-    timeout.tv_sec = whole_seconds.count();
-    timeout.tv_nsec = std::chrono::nanoseconds(limit - whole_seconds).count();
+    // poll counts milliseconds in an int, and reads a negative one as "for
+    // ever" - which is what an interval longer than 24 days would become.
+    const auto capped = std::min<std::chrono::milliseconds::rep>(limit.count(), std::numeric_limits<int>::max());
 
     for (;;) {
-        siginfo_t received{};  // NOLINT(misc-include-cleaner)
-        if (sigtimedwait(&set, &received, &timeout) >= 0) {
-            return received.si_signo == SIGHUP ? service::Wakeup::Reload : service::Wakeup::Stop;
+        pollfd watching{.fd = descriptor_.get(), .events = POLLIN, .revents = 0};
+        const int ready = ::poll(&watching, 1, static_cast<int>(capped));
+        if (ready > 0) {
+            break;
         }
-        if (errno == EAGAIN) {
+        if (ready == 0) {
             return service::Wakeup::Timeout;
         }
         if (errno != EINTR) {
             throw std::system_error(errno, std::generic_category(), "waiting for a signal");
         }
     }
+
+    signalfd_siginfo received{};
+    if (::read(descriptor_.get(), &received, sizeof received) != static_cast<ssize_t>(sizeof received)) {
+        throw std::system_error(errno, std::generic_category(), "reading a signal");
+    }
+
+    return received.ssi_signo == SIGHUP ? service::Wakeup::Reload : service::Wakeup::Stop;
 }
 
 }  // namespace mydaemon::shutdown

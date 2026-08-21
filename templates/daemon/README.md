@@ -126,6 +126,7 @@ never installed - because a function in a library can be tested, and a loop in
 | --- | --- | --- |
 | `options` | turns `argv` and a configuration file into `Options` | CLI11, and nothing else does |
 | `shutdown` | turns signals into an answer the loop can read | the OS, and nothing else does |
+| `unique_fd` | closes a file descriptor exactly once | `close()` |
 | `service` | works, waits, works again, until asked to stop | `options` and `task` |
 | `task` | one run of the work | nothing |
 
@@ -151,15 +152,26 @@ add the source to `add_library(mydaemon_lib ...)` and the test to
 | `SIGTERM`, `SIGINT` | finishes the run it is in, writes `stopping`, exits 0 |
 | `SIGHUP` | reads the configuration file again; keeps the old one if it cannot |
 
-They are **blocked** rather than handed to a handler, and received one at a time
-by `shutdown::Signals::wait`. Two things follow, and they are the reason for it:
+**There is no signal handler.** The signals are blocked with `pthread_sigmask`,
+turned into a file descriptor with `signalfd`, and waited for with `poll` -
+`shutdown::Watcher` is all of it. Three things follow, and together they are the
+reason for it:
 
-- There is no handler, so there is no async-signal-safe code to get wrong. The
-  usual advice - "a handler may only assign to a `volatile sig_atomic_t`" -
-  is a rule about a thing that does not exist here.
-- A signal that arrives while the work is running stays pending until the next
-  wait. So "it finishes what it is doing first" is a property of the loop's
-  shape rather than a promise the work has to keep.
+- Nothing runs asynchronously, so there is no async-signal-safe code to get
+  wrong. The usual advice - "a handler may only assign to a
+  `volatile sig_atomic_t`" - is a rule about a thing that does not exist here,
+  and neither does the global it would have to be written to. Turn that around
+  and it is the argument: a handler *needs* a mutable global, `clang-tidy`
+  objects to mutable globals, and the objection is right.
+- One wait covers both the next interval and the next signal, so a stop is acted
+  on when it arrives rather than at the end of the interval it interrupted.
+- A signal that arrives while the work is running stays pending until that wait.
+  So "it finishes what it is doing first" is a property of the loop's shape
+  rather than a promise the work has to keep.
+
+That descriptor is also where this grows. A service that later needs a socket, a
+timer or an `inotify` watch adds a second entry to the same `poll` - which is
+what a daemon's event loop is, and why it is worth starting from one.
 
 `test/run-daemon.sh` is what says that is true rather than intended: it starts
 the built program, signals it, and checks the exit status and every line that
@@ -292,9 +304,16 @@ somebody else's clone. Any feature test macro works; there is no list here to
 be on. [docs/standard-library.md](docs/standard-library.md) has what the
 environments in the matrix actually provide, measured.
 
-The one thing here that is not standard C++ is `shutdown.cpp`, which is POSIX:
-`pthread_sigmask` and `sigtimedwait`. That is where a port to something other
-than Linux would start, and it is one file for that reason.
+What is not standard C++ here is `shutdown.cpp` and the one line of
+`unique_fd.cpp`: `pthread_sigmask` is POSIX, and `signalfd` is Linux. That is
+where a port to something else would start, and it is why they are their own
+files.
+
+`std::stop_token` would be the standard way to carry a stop request, and it is
+not used, because libc++ 18 - the third column of that table, and what
+`--preset clang-libc++` gets on Ubuntu 24.04 - does not have it. `Wakeup` is the
+enum that replaces it, and it is three lines to delete when that stops being a
+floor you care about.
 
 ## Contributing
 
