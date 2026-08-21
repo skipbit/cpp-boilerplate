@@ -103,5 +103,17 @@ jobs:
 
           if [ -n "$behind" ]; then
             echo "Behind:${behind}"
+            # Said here as well as in CONTRIBUTING.md, because this is what
+            # somebody who has just seen the badge go red is actually reading.
+            {
+              echo
+              echo "Anything outside templates/ is shared, so one change to it leaves every"
+              echo "published template behind at once. Merging is not publishing; run this on"
+              echo "main, once for each template above:"
+              echo
+              for name in $behind; do
+                echo "    ./scripts/publish-template.sh ${name} --push"
+              done
+            } | tee -a "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
