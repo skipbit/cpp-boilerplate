@@ -101,6 +101,7 @@ docs/              the reasoning behind the configuration
 templates/lib/     the library template
 templates/cli/     the command line template
 templates/daemon/  the service template
+templates/qt/      the Qt desktop template
 .devcontainer/     the pinned toolchain, used by CI and the dev container
 .githooks/         the checks that run before a commit
 ```
