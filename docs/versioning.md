@@ -114,6 +114,13 @@ MINOR change to a person and a MAJOR one to the `awk` in somebody's pipeline.
 Deciding which of those your output is for, and writing it down, is what makes
 that question answerable at all.
 
+A service has three more, and they break somebody's machine rather than
+somebody's pipeline: the keys in its configuration file, the name of its unit -
+which is what `systemctl enable` was typed with, and what every `systemctl`
+command after it is typed with too - and which signals it answers. `systemctl
+reload` is a promise about `SIGHUP` in the same way a flag is a promise about a
+word.
+
 ## When to raise it
 
 - **Start at `0.1.0`** and stay in `0.x` while the API is still being decided.

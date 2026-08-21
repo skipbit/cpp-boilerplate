@@ -45,6 +45,20 @@ You can see this for yourself: a diagnostic prints as
 `[cppcoreguidelines-avoid-c-arrays,hicpp-avoid-c-arrays,modernize-avoid-c-arrays]`.
 Those are three names, one check.
 
+### `NOLINT`, and when it is not a cheat
+
+A `// NOLINT(check-name)` switches a check off on one line and nowhere else.
+Nothing enforces a reason for one of those the way `check-tidy-rationale.sh`
+enforces one for the list below, so it is a convention instead: name the checks
+rather than writing a bare `NOLINT`, and say why on the line above.
+
+It earns its place when clang-tidy asks for something that does not exist -
+`misc-include-cleaner` naming a system type whose only declaration is in a
+private header, where there is no public header to add. A `NOLINT` because a
+finding is inconvenient is a different thing, and belongs in the list below
+instead, where somebody has to write the reason down once and everybody can
+read it.
+
 ### What is switched off, and why
 
 **`bugprone-easily-swappable-parameters`** - fires on any two adjacent
