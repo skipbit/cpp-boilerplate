@@ -76,8 +76,24 @@ RUN update-alternatives --install /usr/bin/clang clang "/usr/bin/clang-${CLANG_V
 
 # Qt is a system library, which is why it is here and not in the shared file:
 # adding it there would invalidate the cache for every template that has no
-# window. qt6-base-dev is the whole dependency - Widgets, Gui and Core - and it
-# is Ubuntu's own build, which is what pins this template to libstdc++.
+# interface. It is Ubuntu's own build, which is what pins this template to
+# libstdc++.
+#
+# The qml6-module-* packages are the QML modules the interface imports, at run
+# time rather than at build time. They are named one by one because on 24.04
+# nothing pulls them in: qt6-declarative-dev gives you the headers and qmllint,
+# and an application that builds and links then fails to start with
+# `module "QtQuick" is not installed`.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends qt6-base-dev \
+ && apt-get install -y --no-install-recommends \
+      qt6-base-dev \
+      qt6-declarative-dev \
+      qml6-module-qtqml \
+      qml6-module-qtqml-models \
+      qml6-module-qtqml-workerscript \
+      qml6-module-qtquick \
+      qml6-module-qtquick-controls \
+      qml6-module-qtquick-layouts \
+      qml6-module-qtquick-templates \
+      qml6-module-qtquick-window \
  && rm -rf /var/lib/apt/lists/*

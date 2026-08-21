@@ -1,0 +1,20 @@
+# ThreadSanitizer only sees what was compiled with it, and the Qt in front of
+# you was not. Qt 6.10 runs the QML engine's loader on a thread of its own, and
+# every report from it is inside these libraries with no frame of ours in the
+# stack - a race it cannot rule out rather than one it found.
+#
+# The entries name libraries rather than findings, deliberately: a suppression
+# written against a particular report would go stale silently, and one that
+# hides code we wrote would be worse than no sanitizer at all. Nothing here
+# matches this project's own objects, so a race in them still fails the test.
+#
+# Delete a line and watch the reports come back, if you want to see that.
+race:libQt6Core.so
+race:libQt6Gui.so
+race:libQt6Qml.so
+race:libQt6Quick.so
+
+# And the thread itself: Qt starts the loader and lets the process end without
+# joining it, which tsan reports as a leaked thread. Ours are joined or there
+# are none, so this only ever matches Qt's.
+thread:QThread::start

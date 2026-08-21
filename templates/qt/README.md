@@ -5,9 +5,9 @@
 ![Qt 6](https://img.shields.io/badge/Qt-6-blue.svg)
 ![License 0BSD](https://img.shields.io/badge/license-0BSD-blue.svg)
 
-A C++ desktop application that builds, tests and installs itself from the first
-commit - and whose tests run with no screen attached. Rename it and start
-writing.
+A C++ desktop application - Qt Quick, with the interface in QML - that builds,
+tests and installs itself from the first commit, and whose tests run with no
+screen attached. Rename it and start writing.
 
 Generated from [cpp-boilerplate](https://github.com/skipbit/cpp-boilerplate),
 where the template itself is developed and where issues about it belong.
@@ -24,11 +24,19 @@ stay true after the copy. Add your own once you have a repository:
 
 ## Start
 
-You need Qt's development package. On Ubuntu and Debian:
+You need Qt's development packages, and the QML modules the interface imports.
+On Ubuntu and Debian:
 
 ```sh
-sudo apt install qt6-base-dev
+sudo apt install qt6-base-dev qt6-declarative-dev \
+  qml6-module-qtqml qml6-module-qtqml-models qml6-module-qtqml-workerscript \
+  qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts \
+  qml6-module-qtquick-templates qml6-module-qtquick-window
 ```
+
+The `qml6-module-*` half is not optional and is not pulled in for you on 24.04:
+they are loaded at run time, so without them this builds, links, and then exits
+with `module "QtQuick" is not installed`.
 
 Then:
 
@@ -56,7 +64,7 @@ symbol that is not there. Measured:
 
 | | Ubuntu 24.04, Qt 6.4.2 | Ubuntu 26.04, Qt 6.10.2 |
 | --- | --- | --- |
-| widgets alone | links | links |
+| an engine and a window, alone | links | links |
 | `QString::fromStdString` | links | links |
 | `QString::toStdString` | **fails** | **fails** |
 | `QTimer::singleShot(std::chrono)` | links | **fails** |
@@ -90,9 +98,10 @@ Everything is called `myapp`. Rename it:
 ./scripts/install-hooks.sh
 ```
 
-The first covers the namespace, all three targets, the generated version header,
-the window title, the homepage in `project()`, and the desktop entry - its file
-name as well as what is inside it. The homepage comes from the `origin` remote,
+The first covers the namespace, the targets, the generated version header, the
+QML module's URI and the `import` that names it, the window title, the homepage
+in `project()`, and the desktop entry - its file name as well as what is inside
+it. The homepage comes from the `origin` remote,
 or from `--url`; with neither, the line is deleted rather than left pointing at
 the template.
 
@@ -111,8 +120,9 @@ uses, which is an example of the shape rather than a feature.
 ## How it is laid out
 
 ```
-src/               everything, because nothing here is installed as a header
-test/              one test file per source file, plus one that runs the program
+src/               the C++: what the program knows, and the one class QML binds to
+qml/               the interface
+test/              one test file per layer, plus one that runs the program
 desktop/           the desktop entry, with the name and path filled in by CMake
 cmake/             the generated version header's template
 docs/              why the configuration is what it is
@@ -125,70 +135,106 @@ docs/              why the configuration is what it is
 ceremony: everything that would otherwise be written in `main()` is then in a
 function, and a function can be called by a test while `main()` cannot.
 
-**The logic is not in the widget, and the build says so.** There are two
-libraries:
+**The logic is not in the interface, and the build says so.** There are three
+layers and two libraries:
 
 | target | holds | links |
 | --- | --- | --- |
-| `myapp_model` | `catalogue`, `presentation` | nothing from Qt |
-| `myapp_ui` | `window`, `startup` | `myapp_model`, `Qt6::Widgets` |
+| `myapp_core` | `catalogue`, `presentation` | nothing from Qt |
+| `myapp_ui` | `filtered_entries`, `startup`, `qml/Main.qml` | `myapp_core`, `Qt6::Quick` |
 
-`myapp_model` is not linked against Qt, so a `QString` in the model is a compile
-error rather than a review comment - it stops at `fatal error: QString: No such
-file or directory`. Its tests link that library and nothing else, construct no
-`QApplication`, and would keep passing if every widget here were deleted.
+`myapp_core` is not linked against Qt, so a `QString` in it is a compile error
+rather than a review comment - it stops at `fatal error: QString: No such file
+or directory`. Its tests link that library and nothing else, construct no
+application object, and would keep passing if the whole interface were deleted.
 
-That enforces one direction of the rule: the model cannot reach for a widget.
-The other direction - a window that quietly works out for itself what the model
-already answers - no arrangement can catch, and this one is not claiming to.
-What makes it easy to see instead is that `Window` is short: every question it
-asks goes to a function somewhere else, so a new one appearing inline is
-visible in a way it would not be in a class that already does its own work.
+That enforces one direction of the rule: what the program knows cannot reach for
+the interface. The other direction - a view that quietly works out for itself
+what the model already answers - no arrangement can catch. What makes it easy to
+see instead is that neither `FilteredEntries` nor `Main.qml` has anywhere to put
+a decision: one forwards, the other binds.
 
-| unit | does | knows about |
+| layer | does | knows about |
 | --- | --- | --- |
 | `catalogue` | holds the entries, and answers which ones match | nothing |
 | `presentation` | turns a result into the strings that get shown | `catalogue` |
-| `window` | builds the widgets and wires the one that changes | all of the above, and Qt |
-| `startup` | assembles the program and runs it | `window`, `catalogue`, Qt |
+| `filtered_entries` | offers both to QML as a property and a model | all of the above, and Qt |
+| `qml/Main.qml` | says what the window looks like | `filtered_entries` |
+| `startup` | assembles the program and runs it | Qt |
 
-`Window` decides nothing. It reads the query, asks `catalogue` what matches,
-asks `presentation` how to say it, and puts the answer in widgets. Every
-question it asks is answered by a function with a test next to it.
+`FilteredEntries` answers no questions of its own. The query goes to
+`catalogue`, the strings come from `presentation`, and what is left is turning
+their answers into the shape a view expects. `Main.qml` contains no rule at all:
+a binding is the whole wiring, and nothing in it is told when to update.
+
+Its methods are named the way the rest of this project names things - `set_query`,
+not `setQuery` - because `.clang-tidy` checks one of those conventions and
+nothing checks the other. QML does not care: it binds to the property, and the
+property is called `query` either way.
 
 To add a feature: `src/thing.hpp`, `src/thing.cpp`, `test/thing_test.cpp`, and
 add the source to whichever library it belongs to - which is a question worth
-asking each time, because the answer is usually `myapp_model`.
+asking each time, because the answer is usually `myapp_core`.
 
-## `new` without `delete`
+## Who owns the model
 
-`window.cpp` creates its widgets with `new` and never deletes them. That is
-correct Qt, not a leak: a `QObject` given a parent is destroyed by that parent,
-and the layout and widgets here are all given `this`. Holding them in a
-`unique_ptr` as well would be a double free rather than an improvement.
+`FilteredEntries` is created in `Main.qml`, not in C++:
 
-The address sanitizer preset runs the widget tests, so this is checked rather
-than asserted.
+```qml
+FilteredEntries {
+    id: entries
+}
+```
 
-## Testing a program with a window
+It is registered with `QML_ELEMENT`, which is why `import myapp` is enough to
+name it, and the QML engine owns every object it instantiates. So nothing in
+`startup.cpp` creates one and nothing deletes one - and if you find yourself
+passing a C++-owned `QObject*` into QML later, that is the moment to read what
+Qt says about ownership, because the answer stops being automatic.
+
+## Testing a program with an interface
 
 ```sh
 ctest --preset debug
 ```
 
-There are three kinds of test here, and the split is deliberate.
+Four kinds of test, and the split is the design rather than an accident.
 
-- **`catalogue_test` and `presentation_test`** link `myapp_model`. No
-  `QApplication`, no widgets, no display. They are ordinary function calls.
-- **`window_test`** builds real widgets. It brings its own `main()`, because a
-  `QWidget` needs a `QApplication` to exist first, and it sets
+- **`myapp_core_test`** links `myapp_core`. No Qt, no application object, no
+  display. Ordinary function calls.
+- **`myapp_bridge_test`** exercises `FilteredEntries` directly. It links Qt and
+  still needs no application object, which is the measurement that says the
+  class is a forwarder rather than a place where things happen.
+- **`myapp_interface_test`** loads `Main.qml` and drives it: it types into the
+  field and reads the labels, so what it checks is the bindings. It brings its
+  own `main()`, because the engine needs a `QGuiApplication` first, and it sets
   `QT_QPA_PLATFORM=offscreen` before creating one - so it runs where there is no
   display, and puts no windows on one where there is.
-- **`myapp.starts`** runs the built program with `--self-check`, which draws
-  once and quits. It is the only thing here that goes through `main()`.
+- **`myapp.qmllint`** is to QML what clang-tidy is to the C++, and nothing else
+  here reads the `.qml` files at all: to the compiler they are bytes in a
+  resource. It caught an unqualified property access in this file's first
+  version.
+- **`myapp.starts`** runs the built program with `--self-check`, which loads the
+  interface, draws once and quits. It is the only thing here that goes through
+  `main()`.
 
 `--self-check` exists for that test. A program that can only be checked by a
 person watching it is a program that stops being checked.
+
+## What Qt 6.4 cannot do
+
+Ubuntu 24.04 ships Qt 6.4, which is the floor this template builds on, and two
+things follow from it.
+
+`startup.cpp` loads the interface by URL rather than with
+`QQmlApplicationEngine::loadFromModule`, which arrived in 6.5. The URL form
+works on every version and is one line longer.
+
+`myapp.qmllint` does not run on 6.4: its qmllint cannot resolve a C++ type
+registered with `QML_ELEMENT`, and reports `FilteredEntries` as unresolved.
+Running it anyway would mean either ignoring its answer or writing the QML
+around a tool's blind spot, so configuration says which it is and skips it. On
+6.5 and newer - including the 26.04 the CI matrix builds on - it runs.
 
 ## Installing
 
@@ -209,16 +255,25 @@ configuring again rather than editing the installed copy.
   `-DCPPBP_WARNINGS_AS_ERRORS=OFF`.
 - **Sanitizers** for address, undefined behaviour, threads and memory.
   Combinations that cannot work together fail configuration rather than quietly
-  checking less than you expect.
+  checking less than you expect. The thread sanitizer needs one thing said: it
+  only sees what was compiled with it, and the Qt in front of you was not. Qt
+  6.10 runs the QML loader on a thread of its own, and every report from it is
+  inside `libQt6Core` with no frame of ours. `test/tsan-suppressions.txt` names
+  those libraries and nothing else - a race in code written here still fails the
+  test, which was checked by putting one there.
 - **clang-tidy** in the compile step, so a violation fails the build the same
-  way a compile error does. Qt's generated `moc` sources are not analysed -
-  CMake excludes what it generates, so a finding here is always about a file you
-  wrote.
-- **GoogleTest**, fetched rather than vendored. Not QTest: the tests that matter
-  most here are the ones with no Qt in them.
+  way a compile error does. Nothing generated is analysed: CMake excludes what
+  `moc` writes, and a `.clang-tidy` placed at the top of the build directory
+  excludes the compiled QML, the resource loaders and the type registrations -
+  so a finding here is always about a file you wrote.
+- **qmllint**, as a test, on the versions of Qt whose qmllint can resolve a
+  `QML_ELEMENT` type.
+- **GoogleTest**, fetched rather than vendored. Not QTest and not QML's own test
+  runner: the tests that matter most here are the ones with no Qt in them, and
+  one framework for all of them is one thing to learn.
 - **A pinned environment** in `.devcontainer/`, the same one CI builds against,
-  with Qt in it and the X11 socket passed through so a window opened inside the
-  container appears on your screen.
+  with Qt and the QML modules in it and the X11 socket passed through, so a
+  window opened inside the container appears on your screen.
 - **Workflows**: `pr-check` and `main-check` run the matrix, the pinned build
   and the static analysis; `nightly-sanitizer` runs the address and thread
   builds overnight; `release` turns a `vX.Y.Z` tag into a GitHub release;
@@ -227,8 +282,8 @@ configuring again rather than editing the installed copy.
 
 There is no SBOM here, for the reason the command line and service templates
 have none. `install(SBOM)` refuses a target that references one it cannot
-attribute, and this program links two static libraries that exist for its tests
-and are never installed. Measured with CMake 4.4.2:
+attribute, and this program links static libraries that exist for its tests and
+are never installed. Measured with CMake 4.4.2:
 
 ```
 Target "myapp" references target "myapp_ui" which has no

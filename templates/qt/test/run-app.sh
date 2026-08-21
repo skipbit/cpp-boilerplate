@@ -14,6 +14,12 @@ mkdir -p "$work"
 
 export QT_QPA_PLATFORM=offscreen
 
+# Qt asks for one and complains to standard error when it is missing, which
+# would be the first thing anybody reads when this fails for another reason.
+export XDG_RUNTIME_DIR="$work/runtime"
+mkdir -p "$XDG_RUNTIME_DIR"
+chmod 700 "$XDG_RUNTIME_DIR"
+
 fail() {
     echo "$*" >&2
     for log in "$work"/*.log; do
@@ -32,8 +38,8 @@ run() {
     echo "$status"
 }
 
-# --self-check builds the window, draws it once and quits. That covers main(),
-# startup, the window and every layer under it, in the order a user would.
+# --self-check loads the interface, draws it once and quits. That covers main(),
+# startup, the QML and every layer under it, in the order a user would.
 [ "$(run self-check --self-check)" = "0" ] || fail "--self-check did not exit 0"
 
 # The version comes from project(VERSION) through the generated header, so this

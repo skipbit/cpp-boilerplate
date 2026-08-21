@@ -56,7 +56,20 @@ jobs:
           if [ "${{ matrix.stdlib }}" = "libc++" ]; then
             sudo apt-get install -y --no-install-recommends libc++-dev libc++abi-dev
           else
-            sudo apt-get install -y --no-install-recommends qt6-base-dev
+            # The qml6-module-* packages are the QML modules the interface
+            # imports at run time. On 24.04 nothing pulls them in, and an
+            # application that builds and links then fails to start.
+            sudo apt-get install -y --no-install-recommends \
+              qt6-base-dev \
+              qt6-declarative-dev \
+              qml6-module-qtqml \
+              qml6-module-qtqml-models \
+              qml6-module-qtqml-workerscript \
+              qml6-module-qtquick \
+              qml6-module-qtquick-controls \
+              qml6-module-qtquick-layouts \
+              qml6-module-qtquick-templates \
+              qml6-module-qtquick-window
           fi
 
       - name: Record what this job is actually building with
