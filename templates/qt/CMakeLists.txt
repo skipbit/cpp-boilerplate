@@ -91,9 +91,24 @@ cppbp_set_warnings(myapp_core PRIVATE)
 cppbp_set_sanitizers(myapp_core PUBLIC)
 cppbp_enable_clang_tidy(myapp_core)
 
-# myapp_ui is the QML module: the .qml files and the one C++ class they bind to,
-# compiled into the binary as resources rather than read from disk, so the
-# installed program is one file.
+# The C++ that Qt knows about: the class QML binds to, and the assembly. Its own
+# library rather than part of the QML module below, so that the module can hold
+# nothing but generated code - and can then be judged by nothing.
+add_library(myapp_bridge STATIC
+    src/filtered_entries.cpp
+    src/startup.cpp)
+
+set_target_properties(myapp_bridge PROPERTIES AUTOMOC ON)
+target_link_libraries(myapp_bridge PUBLIC myapp_core Qt6::Quick)
+
+cppbp_set_warnings(myapp_bridge PRIVATE)
+cppbp_set_sanitizers(myapp_bridge PUBLIC)
+cppbp_enable_clang_tidy(myapp_bridge)
+
+# The QML module: the .qml files, compiled into the binary as resources so that
+# the installed program is one file, and the header Qt reads to find out what
+# `import myapp` should offer. Only the header - the implementation is in
+# myapp_bridge, where it is compiled with the warnings on.
 qt_add_library(myapp_ui STATIC)
 
 qt_add_qml_module(myapp_ui
@@ -105,46 +120,47 @@ qt_add_qml_module(myapp_ui
     # directory the other could not be written to.
     OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/qml/myapp"
     SOURCES
-        src/filtered_entries.cpp
         src/filtered_entries.hpp
-        src/startup.cpp
-        src/startup.hpp
     QML_FILES
         qml/Main.qml)
 
-target_link_libraries(myapp_ui PUBLIC myapp_core Qt6::Quick)
-
-cppbp_set_warnings(myapp_ui PRIVATE)
+target_link_libraries(myapp_ui PUBLIC myapp_bridge)
 cppbp_set_sanitizers(myapp_ui PUBLIC)
-cppbp_enable_clang_tidy(myapp_ui)
-
-# Two things judge code, and neither can tell what was written from what was
-# generated. CMake already excludes what AUTOMOC produces; Qt's QML compiler and
-# resource writer put their output under .rcc/, and nothing excludes that.
-#
-# clang-tidy reads the nearest .clang-tidy walking up from the file it is
-# analysing. Everything under the build directory is generated and nothing else
-# is, so one placed at the top of it switches every check off for exactly the
-# files nobody can fix - the compiled QML, the resource loaders and the type
-# registrations - and for nothing that was written by hand.
-#
-# Not "-*" on its own: clang-tidy 18 answers "no checks enabled" and exits with
-# a usage message. llvm-header-guard is a check that only ever looks at headers,
-# so it is one that is on and can never fire on what is here.
-file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/.clang-tidy" "Checks: '-*,llvm-header-guard'\n")
-
-# The compiler has no such mechanism. Qt 6.4's QML compiler writes code that
-# shadows its own parameters; 6.10 does not, so this stops applying by itself
-# once 24.04 is no longer a floor.
-if(Qt6_VERSION VERSION_LESS 6.5 AND NOT MSVC)
-    target_compile_options(myapp_ui PRIVATE -Wno-shadow)
-endif()
 
 qt_add_executable(myapp src/main.cpp)
 target_link_libraries(myapp PRIVATE myapp_ui myapp_uiplugin)
 cppbp_set_warnings(myapp PRIVATE)
 cppbp_set_sanitizers(myapp PRIVATE)
 cppbp_enable_clang_tidy(myapp)
+
+# Everything above that is not one of the three named below holds generated code
+# and nothing else: the compiled QML, the resource loaders, the type
+# registrations, the plugin. qt_add_qml_module gives its helper targets a copy of
+# the backing target's compile options, so leaving them alone would mean judging
+# generated code by rules written for people - and it fails, loudly and
+# unfixably: GCC at -O3 reports a possible null dereference inside Qt's own
+# qhash.h, and Qt 6.4's QML compiler shadows its own parameters.
+#
+# The sanitizer flags stay on. An object built without them does not link
+# against one built with them, and half a sanitized program checks nothing.
+#
+# clang-tidy is dealt with the same way, in the file it reads: it takes the
+# nearest .clang-tidy walking up from what it is analysing, and everything under
+# the build directory is generated. Not "-*" on its own, because clang-tidy 18
+# answers "no checks enabled" and exits with a usage message; llvm-header-guard
+# only ever looks at headers, so it is a check that is on and can never fire on
+# what is there.
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/.clang-tidy" "Checks: '-*,llvm-header-guard'\n")
+
+get_property(myapp_all_targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
+cppbp_sanitizer_flags(myapp_sanitizer_flags)
+
+foreach(myapp_target IN LISTS myapp_all_targets)
+    if(NOT myapp_target MATCHES "^(myapp|myapp_core|myapp_bridge)$")
+        set_target_properties(${myapp_target} PROPERTIES
+            COMPILE_OPTIONS "${myapp_sanitizer_flags}")
+    endif()
+endforeach()
 
 # The desktop entry names the program and the path it was installed to, so it is
 # generated rather than shipped. Unlike a systemd unit, this one does belong

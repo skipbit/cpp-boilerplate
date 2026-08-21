@@ -23,7 +23,7 @@ gtest_discover_tests(myapp_core_test)
 # The class QML binds to. It links Qt, and still needs no application object -
 # which is why it is here rather than in the file below.
 add_executable(myapp_bridge_test filtered_entries_test.cpp)
-target_link_libraries(myapp_bridge_test PRIVATE myapp_ui myapp_uiplugin GTest::gtest_main)
+target_link_libraries(myapp_bridge_test PRIVATE myapp_bridge GTest::gtest_main)
 cppbp_set_warnings(myapp_bridge_test PRIVATE)
 cppbp_set_sanitizers(myapp_bridge_test PRIVATE)
 cppbp_enable_clang_tidy(myapp_bridge_test)

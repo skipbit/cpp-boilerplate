@@ -141,12 +141,19 @@ layers and two libraries:
 | target | holds | links |
 | --- | --- | --- |
 | `myapp_core` | `catalogue`, `presentation` | nothing from Qt |
-| `myapp_ui` | `filtered_entries`, `startup`, `qml/Main.qml` | `myapp_core`, `Qt6::Quick` |
+| `myapp_bridge` | `filtered_entries`, `startup` | `myapp_core`, `Qt6::Quick` |
+| `myapp_ui` | `qml/Main.qml`, and what Qt generates from it | `myapp_bridge` |
 
 `myapp_core` is not linked against Qt, so a `QString` in it is a compile error
 rather than a review comment - it stops at `fatal error: QString: No such file
 or directory`. Its tests link that library and nothing else, construct no
 application object, and would keep passing if the whole interface were deleted.
+
+`myapp_ui` is separate from `myapp_bridge` for a duller reason that turned out
+to matter: a QML module target is also where Qt puts the code it generates, and
+a target holding only generated code can be exempted from the warnings and the
+static analysis as a whole. Mixing the two would mean choosing between judging
+Qt's output and not judging yours.
 
 That enforces one direction of the rule: what the program knows cannot reach for
 the interface. The other direction - a view that quietly works out for itself
@@ -262,10 +269,12 @@ configuring again rather than editing the installed copy.
   those libraries and nothing else - a race in code written here still fails the
   test, which was checked by putting one there.
 - **clang-tidy** in the compile step, so a violation fails the build the same
-  way a compile error does. Nothing generated is analysed: CMake excludes what
-  `moc` writes, and a `.clang-tidy` placed at the top of the build directory
-  excludes the compiled QML, the resource loaders and the type registrations -
-  so a finding here is always about a file you wrote.
+  way a compile error does. Nothing generated is judged, by it or by the
+  compiler: `myapp_ui` holds only what Qt writes, and `CMakeLists.txt` takes the
+  warnings back off it and off Qt's helper targets while leaving the sanitizer
+  flags on. That is not tidiness. GCC at `-O3` reports a possible null
+  dereference inside Qt's own `qhash.h` through the generated resource loader,
+  and `-Werror` cannot tell that file from yours.
 - **qmllint**, as a test, on the versions of Qt whose qmllint can resolve a
   `QML_ELEMENT` type.
 - **GoogleTest**, fetched rather than vendored. Not QTest and not QML's own test
