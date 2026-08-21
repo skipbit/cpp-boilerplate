@@ -35,7 +35,14 @@ auto parse(int argc, const char* const* argv) -> Outcome
 
     // Rounded up rather than down, so that an interval too small to express in
     // milliseconds becomes the smallest one there is instead of none at all.
-    options.interval = std::chrono::ceil<std::chrono::milliseconds>(std::chrono::duration<double>(interval_seconds));
+    // Written out rather than with std::chrono::ceil, which clang-tidy 18 - the
+    // one Ubuntu 24.04 ships, and so the one the tidy preset finds on a stock
+    // machine - reports as a symbol no included header provides.
+    const std::chrono::duration<double> exact{interval_seconds};
+    options.interval = std::chrono::duration_cast<std::chrono::milliseconds>(exact);
+    if (options.interval < exact) {
+        options.interval += std::chrono::milliseconds{1};
+    }
 
     return {.options = options, .run = true, .status = 0};
 }
