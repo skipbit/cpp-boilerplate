@@ -34,6 +34,14 @@ Presets: `debug` (warnings as errors), `release`, `asan`, `tsan`, `tidy`.
 CMake, a compiler and Ninja are enough; the test framework is fetched during
 configuration.
 
+Run `tidy` against a stock Ubuntu before pushing C++, not only against the
+pinned image. `preset-check` installs Ubuntu's own clang-tidy on purpose - it is
+what somebody typing the preset has - and the versions disagree in both
+directions: 18 rejected a `std::chrono::ceil` that 21 and 22 accepted, and 21
+and 22 traced a `dup(-1)` that 18 did not. A throwaway `FROM ubuntu:24.04` with
+`clang-tidy` in it answers that before CI does; `cmake --build --preset tidy --
+-k 0` gets all the findings rather than the first.
+
 `.devcontainer/` holds the pinned toolchain - the same image the CI builds
 against, CMake 4.4 and Clang 21. Open the repository in it if you want the
 version of clang-tidy that decides whether the static analysis job is green,
@@ -174,6 +182,11 @@ the older thing. So red is a fact rather than a fault, and the fix is a publish
 rather than a narrower comparison. It is not part of `pr-check`: a pull request
 cannot be published from, so failing one on this would only teach people to
 ignore it.
+
+**A change outside `templates/` is a change to every template**, so publishing
+the one you were working on does not finish it: everything already published is
+behind until it is published too. Merging is not publishing, and the failing job
+prints the commands.
 
 ## What this repository does not have
 
