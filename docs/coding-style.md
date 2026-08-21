@@ -45,6 +45,38 @@ You can see this for yourself: a diagnostic prints as
 `[cppcoreguidelines-avoid-c-arrays,hicpp-avoid-c-arrays,modernize-avoid-c-arrays]`.
 Those are three names, one check.
 
+### `NOLINT` is the last resort, and there are none
+
+A `// NOLINT(check-name)` switches a check off on one line. Nothing enforces a
+reason for one the way `check-tidy-rationale.sh` enforces a reason for the list
+below - which is why it is the last thing to reach for rather than the first.
+Three steps, in order.
+
+**A finding you want to suppress is first a question about the design.** A
+signal handler, for instance, can only tell the rest of a program anything
+through a mutable global, and `cppcoreguidelines-avoid-non-const-global-variables`
+says so; blocking the signals and receiving them synchronously needs neither a
+handler nor a global, and the finding is then absent rather than suppressed.
+
+**When the code is right and the check is wrong, say so in `.clang-tidy`,
+once.** That is the list below, and `check-tidy-rationale.sh` makes writing the
+reason a rule rather than a habit. A configuration entry can be read, argued
+with and deleted; a `NOLINT` on line 41 of one file can only be found with grep.
+
+**An inline `NOLINT` is for a finding that is wrong in one place and right
+everywhere else.** There are none in this repository. If you add the first one,
+name the checks rather than writing a bare `NOLINT`, and put the reason on the
+line above it.
+
+Some findings are neither, and the answer is then to narrow what the check asks
+rather than to switch it off. `misc-include-cleaner` names the header that
+declares a symbol; for the POSIX signal names, glibc's answer is a `bits/`
+header nobody may include, or `<signal.h>` where `<csignal>` is the spelling
+that belongs in C++ and works. `misc-include-cleaner.IgnoreHeaders:
+'bits/.*;.*signal\.h'` says so, and the check keeps its opinion about every
+other header. It goes inside `CheckOptions:`; appended after it, YAML puts it
+somewhere clang-tidy does not read and it silently does nothing.
+
 ### What is switched off, and why
 
 **`bugprone-easily-swappable-parameters`** - fires on any two adjacent

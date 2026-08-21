@@ -22,7 +22,7 @@ one feature means one header, one implementation and one test.
 | --- | --- | --- |
 | `lib` | a library other code links against | [skipbit/cpp-boilerplate-lib](https://github.com/skipbit/cpp-boilerplate-lib) |
 | `cli` | a command line tool | [skipbit/cpp-boilerplate-cli](https://github.com/skipbit/cpp-boilerplate-cli) |
-| `daemon` | a long-running process | planned |
+| `daemon` | a service that runs until it is stopped | [skipbit/cpp-boilerplate-daemon](https://github.com/skipbit/cpp-boilerplate-daemon) |
 | `qt` | a Qt desktop application | planned |
 
 Each template is also published as its own repository, so that GitHub's
@@ -141,6 +141,7 @@ ci/                the workflows every published template gets
 docs/              the reasoning behind the configuration
 templates/lib/     the library template
 templates/cli/     the command line template
+templates/daemon/  the service template
 .devcontainer/     the pinned toolchain, used by CI and the dev container
 .githooks/         the checks that run before a commit
 ```

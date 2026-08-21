@@ -25,6 +25,7 @@ endif()
 
 option(CPPBP_BUILD_LIB "Build the library template" ON)
 option(CPPBP_BUILD_CLI "Build the command line template" ON)
+option(CPPBP_BUILD_DAEMON "Build the service template" ON)
 option(CPPBP_BUILD_TESTING "Build the tests of every enabled template" ON)
 option(CPPBP_BUILD_EXAMPLES "Build the examples of every enabled template" ON)
 
@@ -43,6 +44,8 @@ set(MYLIB_BUILD_EXAMPLES ${CPPBP_BUILD_EXAMPLES})
 set(MYLIB_INSTALL ON)
 set(MYCLI_BUILD_TESTING ${CPPBP_BUILD_TESTING})
 set(MYCLI_INSTALL ON)
+set(MYDAEMON_BUILD_TESTING ${CPPBP_BUILD_TESTING})
+set(MYDAEMON_INSTALL ON)
 
 if(CPPBP_BUILD_LIB)
     add_subdirectory(templates/lib)
@@ -50,4 +53,8 @@ endif()
 
 if(CPPBP_BUILD_CLI)
     add_subdirectory(templates/cli)
+endif()
+
+if(CPPBP_BUILD_DAEMON)
+    add_subdirectory(templates/daemon)
 endif()

@@ -24,10 +24,11 @@ Clang 21.1.8; `stdc++` and `c++` are the standard library each was given.
 | `__cpp_lib_spanstream` | yes | yes | **no** | yes | yes | **no** |
 | `__cpp_lib_generator` | **no** | **no** | **no** | yes | yes | **no** |
 | `__cpp_lib_flat_map` | **no** | **no** | **no** | yes | yes | yes |
+| `__cpp_lib_jthread` | yes | yes | **no** | yes | yes | yes |
 
 Three things worth reading off it.
 
-**Not one of these eleven is available everywhere.** C++23 as a whole is much
+**Not one of these twelve is available everywhere.** C++23 as a whole is much
 less portable than a version number suggests, and this is a sample rather than
 the whole standard.
 
@@ -41,10 +42,18 @@ The problem moves rather than shrinking.
 **A newer release does not fix it.** Everything true of libc++ 18 above is still
 true of libc++ 21, and libstdc++ 15 still has no `mdspan`.
 
-Two rows deserve a note. `__cpp_lib_expected` is the only one where the same
+Three rows deserve a note. `__cpp_lib_expected` is the only one where the same
 library gives two answers: it is libstdc++ 13 in both 24.04 columns, and the
 compiler is what differs. `__cpp_lib_flat_map` and `__cpp_lib_generator` are
 plain absences - nobody has implemented them there yet.
+
+`__cpp_lib_jthread` is the one that catches people writing services.
+`std::stop_token` is the standard way to say "stop when you are asked", it is
+C++20 rather than C++23, and libc++ 18 does not have it: `<stop_token>` compiles
+to `no type named 'stop_source' in namespace 'std'` on the third column. So a
+long-running program that wants a stop request portable across all six writes
+its own - a small enum is enough - and can drop it for the standard one once
+24.04 is no longer a floor it cares about.
 
 Row `24 clang stdc++` is not an exotic environment. It is what you get by
 installing clang on Ubuntu 24.04 and building, and it is what
