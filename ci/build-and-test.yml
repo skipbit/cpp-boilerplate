@@ -58,20 +58,66 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Install ninja, and libc++ where the matrix asks for it
+      # Asked of the project rather than written here, for the reason the SBOM
+      # option below is: this file is the same in every project that starts from
+      # a template, and what a particular one needs is in its CMakeLists.txt.
+      #
+      # Two questions. Does it use Qt, which has to be installed and is large
+      # enough that a project with no interface should not wait for it. And does
+      # it refuse libc++ - a project that links a Qt built against libstdc++
+      # cannot be built against libc++ at all, so two rows of this matrix are
+      # not a failure it can fix. It says so at configure time; this reads the
+      # same declaration and does not ask.
+      - name: Ask the project what it can be built with
+        id: project
+        run: |
+          qt=false
+          libcxx=true
+          if grep -q 'find_package(Qt6' CMakeLists.txt; then qt=true; fi
+          if grep -q 'CPPBP_STANDARD_LIBRARY STREQUAL "libc++"' CMakeLists.txt; then libcxx=false; fi
+          echo "qt=${qt}" >> "$GITHUB_OUTPUT"
+          echo "libcxx=${libcxx}" >> "$GITHUB_OUTPUT"
+          echo "needs Qt: ${qt}; can use libc++: ${libcxx}"
+
+      - name: Say so when this row is one the project has refused
+        if: matrix.stdlib == 'libc++' && steps.project.outputs.libcxx == 'false'
+        run: |
+          echo "::notice::This project cannot be built against libc++ and says so in"\
+               "CMakeLists.txt. Nothing is built on this row."
+
+      - name: Install ninja, and libc++ or Qt where they are wanted
+        if: matrix.stdlib != 'libc++' || steps.project.outputs.libcxx == 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends ninja-build
           if [ "${{ matrix.stdlib }}" = "libc++" ]; then
             sudo apt-get install -y --no-install-recommends libc++-dev libc++abi-dev
           fi
+          # The qml6-module-* packages are the QML modules an interface imports
+          # at run time. On 24.04 nothing pulls them in, and a program that
+          # builds and links then fails to start.
+          if [ "${{ steps.project.outputs.qt }}" = "true" ]; then
+            sudo apt-get install -y --no-install-recommends \
+              qt6-base-dev \
+              qt6-declarative-dev \
+              qml6-module-qtqml \
+              qml6-module-qtqml-models \
+              qml6-module-qtqml-workerscript \
+              qml6-module-qtquick \
+              qml6-module-qtquick-controls \
+              qml6-module-qtquick-layouts \
+              qml6-module-qtquick-templates \
+              qml6-module-qtquick-window
+          fi
 
       - name: Record what this job is actually building with
+        if: matrix.stdlib != 'libc++' || steps.project.outputs.libcxx == 'true'
         run: |
           cmake --version | head -1
           ${{ matrix.cxx }} --version | head -1
 
       - name: Configure
+        if: matrix.stdlib != 'libc++' || steps.project.outputs.libcxx == 'true'
         run: |
           flags=""
           if [ "${{ matrix.stdlib }}" = "libc++" ]; then flags="-stdlib=libc++"; fi
@@ -83,12 +129,20 @@ jobs:
             -DCPPBP_WARNINGS_AS_ERRORS=ON
 
       - name: Build
+        if: matrix.stdlib != 'libc++' || steps.project.outputs.libcxx == 'true'
         run: cmake --build build
 
       # Runs the unit tests and, separately, installs the package and builds a
       # project against it. The second one is what catches a broken install
       # rule, which a passing unit test says nothing about.
+      #
+      # An interface draws, and a runner has no display. A test that needs this
+      # sets it itself so that running it by hand behaves the same way; it is
+      # here as well because a test added later might not.
       - name: Test
+        if: matrix.stdlib != 'libc++' || steps.project.outputs.libcxx == 'true'
+        env:
+          QT_QPA_PLATFORM: offscreen
         run: ctest --test-dir build --output-on-failure
 
   pinned:
