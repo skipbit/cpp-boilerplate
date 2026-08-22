@@ -41,11 +41,27 @@ jobs:
       # has. clang and clang-tidy are what the tidy preset asks for, libc++ what
       # clang-libc++ does; a preset that needs something else fails here, which
       # is the job doing its work rather than a gap in it.
+      # Qt is asked for out of CMakeLists.txt rather than written here: this
+      # file is the same in every project that starts from a template, and one
+      # with no interface should not wait for a Qt it never uses.
       - name: Install what the presets ask for
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             ninja-build clang clang-tidy libc++-dev libc++abi-dev
+          if grep -q 'find_package(Qt6' CMakeLists.txt; then
+            sudo apt-get install -y --no-install-recommends \
+              qt6-base-dev \
+              qt6-declarative-dev \
+              qml6-module-qtqml \
+              qml6-module-qtqml-models \
+              qml6-module-qtqml-workerscript \
+              qml6-module-qtquick \
+              qml6-module-qtquick-controls \
+              qml6-module-qtquick-layouts \
+              qml6-module-qtquick-templates \
+              qml6-module-qtquick-window
+          fi
 
       - name: Record what this job is actually building with
         run: |
@@ -85,7 +101,7 @@ jobs:
             # Which ones do is asked of cmake as well, so that a test preset
             # added later starts running without anybody editing this.
             if printf '%s\n' "$test_presets" | grep -qxF -- "$preset"; then
-              ctest --preset "$preset"
+              QT_QPA_PLATFORM=offscreen ctest --preset "$preset"
               ran="run"
             else
               echo "no test preset named \"$preset\"; nothing to run"
