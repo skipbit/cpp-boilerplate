@@ -189,6 +189,10 @@ the one you were working on does not finish it: everything already published is
 behind until it is published too. Merging is not publishing, and the failing job
 prints the commands.
 
+Publishing changes nothing outside this repository. A template listed
+somewhere else stays listed the way it was until that place is edited by hand,
+which is a separate piece of work and one nothing here can check for you.
+
 ## What this repository does not have
 
 No code of conduct, no security policy, no issue templates. They would be
