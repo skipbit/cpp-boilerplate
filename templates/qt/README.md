@@ -290,6 +290,14 @@ configuring again rather than editing the installed copy.
   `dependency-freshness` opens one issue, weekly, when a pin this started with
   falls behind.
 
+The rows are not a fixed list. `pr-check` and `main-check` ask this project what
+it can be built with and build the rows it answers with, which is why there are
+four of them and not six. So no check is named for a libc++ row at all - rather
+than one that builds nothing and reports success. Worth knowing before you name
+a row in GitHub's required status checks: a required check nothing reports waits
+forever. The job named "what this project can be built with" lists every row in
+its summary, and which of them were built.
+
 There is no SBOM here, for the reason the command line and service templates
 have none. `install(SBOM)` refuses a target that references one it cannot
 attribute, and this program links static libraries that exist for its tests and

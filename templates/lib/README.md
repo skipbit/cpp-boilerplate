@@ -112,6 +112,15 @@ to `target_sources` in `CMakeLists.txt`.
 - **A pinned environment** in `.devcontainer/`, the same one CI builds against,
   so a green build means the code changed rather than the machine.
 
+The rows are not a fixed list. `pr-check` and `main-check` ask this project what
+it can be built with and build the rows it answers with, so a configuration the
+project refuses in `CMakeLists.txt` gets no check at all - rather than a check
+that builds nothing and reports success. Worth knowing before you name a row in
+GitHub's required status checks: that name disappears the day the project
+refuses the configuration, and a required check nothing reports waits forever.
+The job named "what this project can be built with" lists every row in its
+summary, and which of them were built.
+
 ## Documents
 
 - [docs/coding-style.md](docs/coding-style.md) - what `.clang-format` and
