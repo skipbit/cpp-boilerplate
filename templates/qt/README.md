@@ -85,9 +85,10 @@ above links on 6.4.2 and fails on 6.10.2.
 
 So configuring with libc++ stops, with the reason and the way out, instead of
 producing a link error a hundred lines into a build. `CMakePresets.json` has no
-`clang-libc++` preset here, and the CI matrix builds this template on four of
-its six rows. That is a smaller claim than the other templates make, and it is
-made where it can be read rather than discovered.
+`clang-libc++` preset here, and the CI matrix has four rows where the other
+templates have six: the two libc++ rows are left out rather than run and
+reported green having built nothing. That is a smaller claim than the other
+templates make, and it is made where it can be read rather than discovered.
 
 ## Make it yours
 
