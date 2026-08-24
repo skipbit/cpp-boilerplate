@@ -85,9 +85,10 @@ above links on 6.4.2 and fails on 6.10.2.
 
 So configuring with libc++ stops, with the reason and the way out, instead of
 producing a link error a hundred lines into a build. `CMakePresets.json` has no
-`clang-libc++` preset here, and the CI matrix builds this template on four of
-its six rows. That is a smaller claim than the other templates make, and it is
-made where it can be read rather than discovered.
+`clang-libc++` preset here, and the CI matrix has four rows where the other
+templates have six: the two libc++ rows are left out rather than run and
+reported green having built nothing. That is a smaller claim than the other
+templates make, and it is made where it can be read rather than discovered.
 
 ## Make it yours
 
@@ -288,6 +289,14 @@ configuring again rather than editing the installed copy.
   builds overnight; `release` turns a `vX.Y.Z` tag into a GitHub release;
   `dependency-freshness` opens one issue, weekly, when a pin this started with
   falls behind.
+
+The rows are not a fixed list. `pr-check` and `main-check` ask this project what
+it can be built with and build the rows it answers with, which is why there are
+four of them and not six. So no check is named for a libc++ row at all - rather
+than one that builds nothing and reports success. Worth knowing before you name
+a row in GitHub's required status checks: a required check nothing reports waits
+forever. The job named "what this project can be built with" lists every row in
+its summary, and which of them were built.
 
 There is no SBOM here, for the reason the command line and service templates
 have none. `install(SBOM)` refuses a target that references one it cannot

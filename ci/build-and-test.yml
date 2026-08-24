@@ -10,6 +10,10 @@
 #                     and never a surprise upgrade.
 #   static-analysis - does it pass clang-tidy and clang-format? In the pinned
 #                     image, so that everyone is arguing with the same version.
+#
+# And one job before them that builds nothing: it asks the project which native
+# rows it has. Not every project has all of them, and a row a project cannot
+# build has to be a row that is not there rather than one that is empty.
 name: build and test
 
 on:
@@ -29,32 +33,28 @@ defaults:
     shell: bash
 
 jobs:
-  native:
-    name: ${{ matrix.os }} · ${{ matrix.cxx }} · ${{ matrix.stdlib }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      # Listed one by one rather than as os × compiler: with `include`, the
-      # entries overwrite the compiler for every os instead of multiplying,
-      # and the matrix silently shrinks to the last one.
-      #
-      # The standard library is a column because it decides more than the
-      # compiler does. clang against libstdc++ and clang against libc++ are two
-      # different sets of C++23, missing different things - and clang picks
-      # libstdc++ by default here, so a project that only builds the default has
-      # not checked the configuration its own escape hatch uses.
-      #
-      # Six combinations rather than every possible one: add to the matrix when
-      # you start caring about a platform this does not cover, and delete the
-      # rows for platforms you have decided not to support.
-      matrix:
-        include:
-          - { os: ubuntu-24.04, cc: gcc, cxx: g++, stdlib: libstdc++ }
-          - { os: ubuntu-24.04, cc: clang, cxx: clang++, stdlib: libstdc++ }
-          - { os: ubuntu-24.04, cc: clang, cxx: clang++, stdlib: libc++ }
-          - { os: ubuntu-26.04, cc: gcc, cxx: g++, stdlib: libstdc++ }
-          - { os: ubuntu-26.04, cc: clang, cxx: clang++, stdlib: libstdc++ }
-          - { os: ubuntu-26.04, cc: clang, cxx: clang++, stdlib: libc++ }
+  # The native matrix below is not the same in every project, so it is asked
+  # for rather than written out.
+  #
+  # It was written out, with every step of a row the project cannot build
+  # carrying an `if:` and doing nothing. That reports success. Five skipped
+  # steps under a green tick beside "ubuntu-24.04 · clang++ · libc++" is, in
+  # the checks list, the same thing as a row that configured, compiled and
+  # tested - and it is the one claim this file must not make. `if:` on the job
+  # would grey the row out instead, and cannot: a job-level `if:` is evaluated
+  # where the `matrix` context does not exist, so it cannot ask which row it is.
+  #
+  # So a row that builds nothing is left out rather than emptied. Nothing that
+  # was being built stops being built; what stops is a green tick for a
+  # configuration nobody compiled. The rows that are left out are named in this
+  # job's summary, because a row that is not there cannot say so itself, and
+  # absent is only better than green while somebody can still see it.
+  project:
+    name: what this project can be built with
+    runs-on: ubuntu-24.04
+    outputs:
+      qt: ${{ steps.ask.outputs.qt }}
+      matrix: ${{ steps.ask.outputs.matrix }}
     steps:
       - uses: actions/checkout@v7
 
@@ -65,28 +65,77 @@ jobs:
       # Two questions. Does it use Qt, which has to be installed and is large
       # enough that a project with no interface should not wait for it. And does
       # it refuse libc++ - a project that links a Qt built against libstdc++
-      # cannot be built against libc++ at all, so two rows of this matrix are
-      # not a failure it can fix. It says so at configure time; this reads the
-      # same declaration and does not ask.
+      # cannot be built against libc++ at all, so two of the rows below are not
+      # a failure it can fix. It says so at configure time; this reads the same
+      # declaration and does not ask.
       - name: Ask the project what it can be built with
-        id: project
+        id: ask
         run: |
+          # Listed one by one rather than as os × compiler: with a product, the
+          # entries overwrite the compiler for every os instead of multiplying,
+          # and the list silently shrinks to the last one.
+          #
+          # The standard library is a column because it decides more than the
+          # compiler does. clang against libstdc++ and clang against libc++ are
+          # two different sets of C++23, missing different things - and clang
+          # picks libstdc++ by default here, so a project that only builds the
+          # default has not checked the configuration its own escape hatch uses.
+          #
+          # Six rows rather than every possible combination: add one when you
+          # start caring about a platform this does not cover, and delete the
+          # rows for platforms you have decided not to support.
+          rows='[
+            {"os": "ubuntu-24.04", "cc": "gcc",   "cxx": "g++",     "stdlib": "libstdc++"},
+            {"os": "ubuntu-24.04", "cc": "clang", "cxx": "clang++", "stdlib": "libstdc++"},
+            {"os": "ubuntu-24.04", "cc": "clang", "cxx": "clang++", "stdlib": "libc++"},
+            {"os": "ubuntu-26.04", "cc": "gcc",   "cxx": "g++",     "stdlib": "libstdc++"},
+            {"os": "ubuntu-26.04", "cc": "clang", "cxx": "clang++", "stdlib": "libstdc++"},
+            {"os": "ubuntu-26.04", "cc": "clang", "cxx": "clang++", "stdlib": "libc++"}
+          ]'
+
           qt=false
           libcxx=true
           if grep -q 'find_package(Qt6' CMakeLists.txt; then qt=true; fi
           if grep -q 'CPPBP_STANDARD_LIBRARY STREQUAL "libc++"' CMakeLists.txt; then libcxx=false; fi
-          echo "qt=${qt}" >> "$GITHUB_OUTPUT"
-          echo "libcxx=${libcxx}" >> "$GITHUB_OUTPUT"
-          echo "needs Qt: ${qt}; can use libc++: ${libcxx}"
 
-      - name: Say so when this row is one the project has refused
-        if: matrix.stdlib == 'libc++' && steps.project.outputs.libcxx == 'false'
-        run: |
-          echo "::notice::This project cannot be built against libc++ and says so in"\
-               "CMakeLists.txt. Nothing is built on this row."
+          if [ "$libcxx" = false ]; then
+            echo "::notice::This project cannot be built against libc++ and says so in"\
+                 "CMakeLists.txt. It has no libc++ rows at all, rather than libc++ rows"\
+                 "that build nothing and report success. See the job summary."
+          fi
+
+          # Every row is in the summary, the ones that are built and the ones
+          # that are not. This is the only place the second kind is mentioned.
+          {
+            echo "Needs Qt: ${qt}"
+            echo
+            echo "| os | compiler | standard library | built |"
+            echo "| --- | --- | --- | --- |"
+            jq -r --argjson libcxx "$libcxx" '.[]
+              | "| \(.os) | \(.cxx) | \(.stdlib) | "
+                + (if $libcxx or .stdlib != "libc++"
+                   then "yes"
+                   else "no - this project refuses libc++" end)
+                + " |"' <<< "$rows"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          include=$(jq -c --argjson libcxx "$libcxx" \
+            '[.[] | select($libcxx or .stdlib != "libc++")]' <<< "$rows")
+
+          echo "qt=${qt}" >> "$GITHUB_OUTPUT"
+          echo "matrix={\"include\": ${include}}" >> "$GITHUB_OUTPUT"
+
+  native:
+    name: ${{ matrix.os }} · ${{ matrix.cxx }} · ${{ matrix.stdlib }}
+    needs: project
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.project.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v7
 
       - name: Install ninja, and libc++ or Qt where they are wanted
-        if: matrix.stdlib != 'libc++' || steps.project.outputs.libcxx == 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends ninja-build
@@ -96,7 +145,7 @@ jobs:
           # The qml6-module-* packages are the QML modules an interface imports
           # at run time. On 24.04 nothing pulls them in, and a program that
           # builds and links then fails to start.
-          if [ "${{ steps.project.outputs.qt }}" = "true" ]; then
+          if [ "${{ needs.project.outputs.qt }}" = "true" ]; then
             sudo apt-get install -y --no-install-recommends \
               qt6-base-dev \
               qt6-declarative-dev \
@@ -111,13 +160,11 @@ jobs:
           fi
 
       - name: Record what this job is actually building with
-        if: matrix.stdlib != 'libc++' || steps.project.outputs.libcxx == 'true'
         run: |
           cmake --version | head -1
           ${{ matrix.cxx }} --version | head -1
 
       - name: Configure
-        if: matrix.stdlib != 'libc++' || steps.project.outputs.libcxx == 'true'
         run: |
           flags=""
           if [ "${{ matrix.stdlib }}" = "libc++" ]; then flags="-stdlib=libc++"; fi
@@ -129,7 +176,6 @@ jobs:
             -DCPPBP_WARNINGS_AS_ERRORS=ON
 
       - name: Build
-        if: matrix.stdlib != 'libc++' || steps.project.outputs.libcxx == 'true'
         run: cmake --build build
 
       # Runs the unit tests and, separately, installs the package and builds a
@@ -140,7 +186,6 @@ jobs:
       # sets it itself so that running it by hand behaves the same way; it is
       # here as well because a test added later might not.
       - name: Test
-        if: matrix.stdlib != 'libc++' || steps.project.outputs.libcxx == 'true'
         env:
           QT_QPA_PLATFORM: offscreen
         run: ctest --test-dir build --output-on-failure

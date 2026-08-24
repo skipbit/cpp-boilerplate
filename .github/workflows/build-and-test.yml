@@ -28,34 +28,45 @@ defaults:
 
 jobs:
   native:
-    name: ${{ matrix.os }} · ${{ matrix.cxx }} · ${{ matrix.stdlib }}
+    name: ${{ matrix.os }} · ${{ matrix.cxx }} · ${{ matrix.stdlib }} · ${{ matrix.qt == 'ON' && 'every template' || 'every template but qt' }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        # The qt column is the row's reach, and the name above says it out
+        # loud. Qt from a distribution is built against libstdc++ and exports
+        # functions whose mangled names contain its standard library types, so
+        # the two libc++ rows build the other three templates and not the
+        # fourth - templates/qt/README.md has the measurements. Named
+        # "ubuntu-24.04 · clang++ · libc++" and nothing more, such a row reads
+        # as this repository building on libc++, which is a claim about four
+        # templates that only three of them have been put to.
+        #
+        # One column rather than two: what the row builds is one fact, and the
+        # name and the Configure step below both read it from here.
         include:
           # ubuntu-26.04 runners are in preview at the time of writing.
-          - { os: ubuntu-24.04, cc: gcc, cxx: g++, stdlib: libstdc++ }
-          - { os: ubuntu-24.04, cc: clang, cxx: clang++, stdlib: libstdc++ }
-          - { os: ubuntu-24.04, cc: clang, cxx: clang++, stdlib: libc++ }
-          - { os: ubuntu-26.04, cc: gcc, cxx: g++, stdlib: libstdc++ }
-          - { os: ubuntu-26.04, cc: clang, cxx: clang++, stdlib: libstdc++ }
-          - { os: ubuntu-26.04, cc: clang, cxx: clang++, stdlib: libc++ }
+          - { os: ubuntu-24.04, cc: gcc, cxx: g++, stdlib: libstdc++, qt: ON }
+          - { os: ubuntu-24.04, cc: clang, cxx: clang++, stdlib: libstdc++, qt: ON }
+          - { os: ubuntu-24.04, cc: clang, cxx: clang++, stdlib: libc++, qt: OFF }
+          - { os: ubuntu-26.04, cc: gcc, cxx: g++, stdlib: libstdc++, qt: ON }
+          - { os: ubuntu-26.04, cc: clang, cxx: clang++, stdlib: libstdc++, qt: ON }
+          - { os: ubuntu-26.04, cc: clang, cxx: clang++, stdlib: libc++, qt: OFF }
     steps:
       - uses: actions/checkout@v7
 
-      # Qt is installed on the rows that can use it, and only there. The Qt a
-      # distribution ships is built against libstdc++ and exports functions
-      # whose names contain its standard library types, so an application built
-      # against libc++ does not link - templates/qt/README.md has the
-      # measurements, and templates/qt/CMakeLists.txt refuses to configure.
+      # Two questions, not one: which standard library this row uses, and
+      # whether it builds the qt template. They answer the same way today and
+      # are still asked separately, because a row that used libc++ and built Qt
+      # would install neither if they were one if/else.
       - name: Install ninja, and libc++ or Qt where the matrix asks for it
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends ninja-build
           if [ "${{ matrix.stdlib }}" = "libc++" ]; then
             sudo apt-get install -y --no-install-recommends libc++-dev libc++abi-dev
-          else
+          fi
+          if [ "${{ matrix.qt }}" = "ON" ]; then
             # The qml6-module-* packages are the QML modules the interface
             # imports at run time. On 24.04 nothing pulls them in, and an
             # application that builds and links then fails to start.
@@ -80,14 +91,13 @@ jobs:
       - name: Configure
         run: |
           flags=""
-          qt=ON
-          if [ "${{ matrix.stdlib }}" = "libc++" ]; then flags="-stdlib=libc++"; qt=OFF; fi
+          if [ "${{ matrix.stdlib }}" = "libc++" ]; then flags="-stdlib=libc++"; fi
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_COMPILER=${{ matrix.cc }} \
             -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
             -DCMAKE_CXX_FLAGS="$flags" \
-            -DCPPBP_BUILD_QT="$qt" \
+            -DCPPBP_BUILD_QT=${{ matrix.qt }} \
             -DCPPBP_WARNINGS_AS_ERRORS=ON
 
       - name: Build
