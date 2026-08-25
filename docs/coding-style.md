@@ -168,6 +168,6 @@ cmake --preset tidy          # clang is pinned: clang-tidy reads the build's fla
 cmake --build --preset tidy  # a finding fails the build, like a compile error
 ```
 
-`./scripts/install-hooks.sh` runs clang-format, clang-tidy, actionlint and
-shellcheck on the files in a commit, before the commit exists. Anything not
+`./scripts/install-hooks.sh` runs clang-format, clang-tidy, actionlint,
+hadolint and shellcheck on the files in a commit, before the commit exists. Anything not
 installed is skipped and said so.

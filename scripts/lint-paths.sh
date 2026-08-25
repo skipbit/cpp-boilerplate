@@ -22,11 +22,12 @@ case "${1:-}" in
     clang-tidy)   git ls-files -- '*.cpp' '*.cc' ;;
     shellcheck)   git ls-files -- '*.sh' '.githooks/*' ;;
     actionlint)   git ls-files -- '.github/workflows/*.yml' 'ci/*.yml' ;;
+    hadolint)     git ls-files -- '*Dockerfile' ;;
     # Not files a checker is run on, but the files that decide whether it needs
     # running: check-tidy-rationale.sh reads both of them whole.
     tidy-rationale) git ls-files -- '.clang-tidy' 'docs/coding-style.md' ;;
     *)
-        echo "usage: $0 <clang-format|clang-tidy|shellcheck|actionlint|tidy-rationale>" >&2
+        echo "usage: $0 <clang-format|clang-tidy|shellcheck|actionlint|hadolint|tidy-rationale>" >&2
         exit 2
         ;;
 esac
