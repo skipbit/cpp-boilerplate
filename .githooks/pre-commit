@@ -104,6 +104,17 @@ if [ ${#tidy_config[@]} -gt 0 ] && [ -x scripts/check-tidy-rationale.sh ]; then
         || fail "a check is switched off in .clang-tidy without a reason in docs/coding-style.md"
 fi
 
+# --- container images -----------------------------------------------------
+mapfile -t dockerfiles < <(for_check hadolint)
+if [ ${#dockerfiles[@]} -gt 0 ]; then
+    if command -v hadolint > /dev/null 2>&1; then
+        note "hadolint: ${#dockerfiles[@]} file(s)"
+        hadolint "${dockerfiles[@]}" || fail "hadolint reported problems"
+    else
+        skipped+=("hadolint")
+    fi
+fi
+
 # --- shell ----------------------------------------------------------------
 mapfile -t shell_scripts < <(for_check shellcheck)
 if [ ${#shell_scripts[@]} -gt 0 ]; then

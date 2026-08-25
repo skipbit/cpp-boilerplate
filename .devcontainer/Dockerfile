@@ -33,8 +33,9 @@ ARG UBUNTU_CODENAME=noble
 ARG CMAKE_VERSION=4.4.2-0kitware1ubuntu24.04.1
 ARG CLANG_VERSION=21
 ARG GCC_VERSION=14
-# No Debian package, so this one is a release binary rather than an apt pin.
+# No Debian package, so these are release binaries rather than apt pins.
 ARG ACTIONLINT_VERSION=1.7.12
+ARG HADOLINT_VERSION=2.15.1
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -70,13 +71,17 @@ RUN apt-get update \
       git \
  && rm -rf /var/lib/apt/lists/*
 
-# actionlint is one static binary and is in nobody's archive, so it comes from
-# its own release. Here rather than installed by the job that runs it, for the
+# Each is one static binary and is in nobody's archive, so they come from their
+# own releases. Here rather than installed by the jobs that run them, for the
 # reason clang-tidy is here: a linter that changes version between one machine
 # and the next turns a review into an argument about whose copy is right.
 RUN wget -qO- "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" \
       | tar -xz -C /usr/local/bin actionlint \
- && actionlint --version
+ && actionlint --version \
+ && wget -qO /usr/local/bin/hadolint \
+      "https://github.com/hadolint/hadolint/releases/download/v${HADOLINT_VERSION}/hadolint-linux-x86_64" \
+ && chmod +x /usr/local/bin/hadolint \
+ && hadolint --version
 
 # Unversioned names, so that CMakeLists and CI do not carry version numbers
 # around. Changing the ARG above changes what these point at.

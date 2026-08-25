@@ -92,7 +92,7 @@ mistake is harder to notice than the template author's still being there, and
 0BSD asks for no attribution either way.
 
 The second points git at `.githooks/`, which runs clang-format, clang-tidy,
-actionlint and shellcheck on the files in a commit; anything not installed is
+actionlint, hadolint and shellcheck on the files in a commit; anything not installed is
 skipped rather than treated as a failure. The dev container runs it for you.
 
 Then replace what it does. `task.cpp` counts its own runs, which is an example
@@ -277,6 +277,9 @@ exporting a dependency nobody consumes to satisfy it is not.
 - [docs/standard-library.md](docs/standard-library.md) - which environments are
   supported, what their standard libraries actually provide, and how to depend
   on something outside what all of them have.
+- [docs/toolchain.md](docs/toolchain.md) - what the pinned image fixes and what
+  it deliberately does not, why apt packages are installed without a version,
+  and the one hadolint rule that is switched off because of it.
 - [docs/versioning.md](docs/versioning.md) - semantic versioning, what a break
   means, and how a release happens.
 

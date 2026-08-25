@@ -69,6 +69,13 @@ jobs:
           [ "$actionlint_pinned" = "$actionlint_current" ] \
             || note actionlint "$actionlint_pinned" "$actionlint_current"
 
+          # --- hadolint: the same, and for the same reason ---
+          hadolint_pinned=$(grep -oP 'ARG HADOLINT_VERSION=\K.*' .devcontainer/Dockerfile)
+          hadolint_current=$(gh api repos/hadolint/hadolint/releases \
+            --jq '[.[] | select(.prerelease == false) | .tag_name][0]' | sed 's/^v//')
+          [ "$hadolint_pinned" = "$hadolint_current" ] \
+            || note hadolint "$hadolint_pinned" "$hadolint_current"
+
           # --- apt pins inside the image: ask the repositories themselves ---
           cmake_pinned=$(grep -oP 'ARG CMAKE_VERSION=\K.*' .devcontainer/Dockerfile)
           clang_pinned=$(grep -oP 'ARG CLANG_VERSION=\K.*' .devcontainer/Dockerfile)

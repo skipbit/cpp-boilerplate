@@ -319,3 +319,14 @@ jobs:
           echo "actionlint: ${#files[@]} file(s)"
           docker run --rm -v "$PWD":/src:ro toolchain:ci \
             bash -euo pipefail -c 'cd /src && exec actionlint "$@"' -- "${files[@]}"
+
+      # hadolint reads .hadolint.yaml the same way, so it runs with the
+      # repository as its cwd too. One check is switched off in that file; the
+      # reason is in docs/toolchain.md and nowhere else.
+      - name: Check the Dockerfiles
+        run: |
+          mapfile -t files < <(./scripts/lint-paths.sh hadolint)
+          [ ${#files[@]} -gt 0 ] || { echo "::error::no files matched"; exit 1; }
+          echo "hadolint: ${#files[@]} file(s)"
+          docker run --rm -v "$PWD":/src:ro toolchain:ci \
+            bash -euo pipefail -c 'cd /src && exec hadolint "$@"' -- "${files[@]}"

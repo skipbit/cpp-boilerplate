@@ -19,7 +19,7 @@ git config core.hooksPath .githooks
 echo "Hooks installed: core.hooksPath -> .githooks"
 echo
 missing=()
-for tool in clang-format clang-tidy actionlint shellcheck; do
+for tool in clang-format clang-tidy actionlint shellcheck hadolint; do
     command -v "$tool" > /dev/null 2>&1 || missing+=("$tool")
 done
 if [ ${#missing[@]} -gt 0 ]; then

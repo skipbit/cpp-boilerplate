@@ -64,6 +64,7 @@ and not on the whole tree:
 | clang-format | `*.cpp` `*.hpp` `*.h` `*.cc` | - |
 | clang-tidy | `*.cpp` `*.cc`, one at a time | a `tidy` build to read the flags from: `cmake --preset tidy` |
 | actionlint | `.github/workflows/*.yml`, `ci/*.yml` | - |
+| hadolint | `*Dockerfile` | - |
 | shellcheck | `*.sh`, `.githooks/*` | - |
 | `scripts/check-tidy-rationale.sh` | `.clang-tidy`, `docs/coding-style.md` | - |
 
@@ -91,6 +92,12 @@ The last row is the one that surprises people. Every check switched off in
 and that is checked rather than hoped for. The failure it exists to prevent is
 a configuration that grows one exclusion at a time, each added to get a build
 green, until nobody knows which of them still matter.
+
+`.hadolint.yaml` switches off one check the same way, and its reason is in
+`docs/toolchain.md`. Nothing enforces that one: it is a single line of
+configuration next to a document written for the people who start a project
+from this, so the pressure that makes `check-tidy-rationale.sh` worth its
+existence is not there yet. Add a second exclusion and it will be.
 
 ## How the repository is arranged
 

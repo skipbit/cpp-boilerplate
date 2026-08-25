@@ -38,6 +38,7 @@ readonly shared=(
     .github/actionlint.yml
     .github/dependabot.yml
     .gitignore
+    .hadolint.yaml
     LICENSE
     docs
     scripts/check-tidy-rationale.sh

@@ -64,8 +64,8 @@ does - see [CONTRIBUTING.md](CONTRIBUTING.md).
   builds a separate project against it with `find_package`, because a library
   that passes its own tests can still be impossible to consume.
 - **An SBOM** in SPDX 3.0.1, off by default. See below.
-- **Hooks** that run clang-format, clang-tidy, actionlint and shellcheck on the
-  files in a commit: `./scripts/install-hooks.sh`. Anything not installed is
+- **Hooks** that run clang-format, clang-tidy, actionlint, hadolint and
+  shellcheck on the files in a commit: `./scripts/install-hooks.sh`. Anything not installed is
   skipped rather than treated as a failure.
 - **A release path**: a `vX.Y.Z` tag builds, tests, and publishes a GitHub
   release. `scripts/release.sh` refuses to make a tag that disagrees with
@@ -130,6 +130,9 @@ silently stopped being written.
 - [docs/standard-library.md](docs/standard-library.md) - which environments are
   supported, what their standard libraries actually provide, and how to depend
   on something outside what all of them have.
+- [docs/toolchain.md](docs/toolchain.md) - what the pinned image fixes and what
+  it deliberately does not, why apt packages are installed without a version,
+  and the one hadolint rule that is switched off because of it.
 - [docs/versioning.md](docs/versioning.md) - semantic versioning against the API
   and the ABI, what breaks a C++ library, and how a release happens.
 
