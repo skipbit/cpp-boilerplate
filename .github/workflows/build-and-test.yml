@@ -106,10 +106,17 @@ jobs:
       # The Qt tests build real widgets, and the runner has no display. The
       # tests set this themselves so that running one by hand behaves the same
       # way; it is here as well because a test added later might not.
+      #
+      # --no-tests=error, here and in the two jobs below. Without it a run that
+      # found nothing to run is a pass: ctest says "No tests were found!!!" and
+      # exits 0, so a build whose tests have all disappeared is exactly as green
+      # as one whose tests all passed. The test presets have chosen the other
+      # answer since they were written, with noTestsAction; these lines do not
+      # go through a preset, so they say it themselves.
       - name: Test
         env:
           QT_QPA_PLATFORM: offscreen
-        run: ctest --test-dir build --output-on-failure
+        run: ctest --test-dir build --output-on-failure --no-tests=error
 
   pinned:
     name: pinned toolchain (with SBOM)
@@ -137,7 +144,7 @@ jobs:
               -DCPPBP_WARNINGS_AS_ERRORS=ON \
               -DMYLIB_GENERATE_SBOM=ON
             cmake --build /tmp/build
-            ctest --test-dir /tmp/build --output-on-failure
+            ctest --test-dir /tmp/build --output-on-failure --no-tests=error
             cmake --install /tmp/build --prefix /tmp/prefix
             test -s /tmp/prefix/lib/sbom/mylib/mylib.spdx.json
           '
@@ -175,7 +182,7 @@ jobs:
               -DCMAKE_BUILD_TYPE=Release \
               -DCPPBP_WARNINGS_AS_ERRORS=ON
             cmake --build /tmp/build
-            ctest --test-dir /tmp/build --output-on-failure
+            ctest --test-dir /tmp/build --output-on-failure --no-tests=error
             cmake --install /tmp/build --prefix /tmp/prefix
             test -f /tmp/prefix/share/applications/myapp.desktop
             cmake -S /src/templates/qt -B /tmp/tidy -G Ninja \

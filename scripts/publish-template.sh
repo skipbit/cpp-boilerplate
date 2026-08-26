@@ -134,8 +134,12 @@ if command -v cmake > /dev/null 2>&1; then
         || die "the assembled tree does not configure"
     cmake --build "$verify" > /dev/null \
         || die "the assembled tree does not build"
-    ctest --test-dir "$verify" --output-on-failure > /dev/null \
-        || die "the assembled tree does not pass its tests"
+    # --no-tests=error, because a tree that arrived without its tests is the
+    # failure this step is here to catch, and ctest calls finding none of them
+    # a success. The message says both: from here the two are one answer, which
+    # is that what was about to be published is not what was checked.
+    ctest --test-dir "$verify" --output-on-failure --no-tests=error > /dev/null \
+        || die "the assembled tree does not pass its tests, or has none to run"
     rm -rf "$verify"
     echo "  configures, builds, tests."
 else

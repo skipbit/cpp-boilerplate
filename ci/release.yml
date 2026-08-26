@@ -84,7 +84,9 @@ jobs:
               -DCPPBP_WARNINGS_AS_ERRORS=ON \
               ${SBOM:+"-D${SBOM}=ON"}
             cmake --build /tmp/build
-            ctest --test-dir /tmp/build --output-on-failure
+            # --no-tests=error: a release that ran no tests must not be a
+            # release that passed them.
+            ctest --test-dir /tmp/build --output-on-failure --no-tests=error
             cmake --install /tmp/build --prefix "/stage/${ARCHIVE}"
             chown -R $(stat -c "%u:%g" /stage) /stage
           '
