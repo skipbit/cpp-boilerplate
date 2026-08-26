@@ -185,10 +185,17 @@ jobs:
       # An interface draws, and a runner has no display. A test that needs this
       # sets it itself so that running it by hand behaves the same way; it is
       # here as well because a test added later might not.
+      #
+      # --no-tests=error, here and in the job below. Without it a run that found
+      # nothing to run is a pass: ctest says "No tests were found!!!" and exits
+      # 0, so a build whose tests have all disappeared is exactly as green as
+      # one whose tests all passed. The test presets in CMakePresets.json choose
+      # the other answer with noTestsAction; these lines do not go through a
+      # preset, so they say it themselves.
       - name: Test
         env:
           QT_QPA_PLATFORM: offscreen
-        run: ctest --test-dir build --output-on-failure
+        run: ctest --test-dir build --output-on-failure --no-tests=error
 
   pinned:
     name: pinned toolchain
@@ -231,7 +238,7 @@ jobs:
               -DCPPBP_WARNINGS_AS_ERRORS=ON \
               ${SBOM:+"-D${SBOM}=ON"}
             cmake --build /tmp/build
-            ctest --test-dir /tmp/build --output-on-failure
+            ctest --test-dir /tmp/build --output-on-failure --no-tests=error
             cmake --install /tmp/build --prefix /tmp/prefix
             if [ -n "$SBOM" ]; then
               find /tmp/prefix -name "*.spdx.json" -size +0c | grep -q .
