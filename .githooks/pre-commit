@@ -71,8 +71,8 @@ fi
 #   cmake --preset tidy
 db=build/tidy/compile_commands.json
 mapfile -t translation_units < <(for_check clang-tidy)
-if [ ${#translation_units[@]} -gt 0 ] && command -v clang-tidy > /dev/null 2>&1; then
-    if [ -f "$db" ]; then
+if [ ${#translation_units[@]} -gt 0 ] && [ -f "$db" ]; then
+    if command -v clang-tidy > /dev/null 2>&1; then
         dir=$(dirname "$db")
         for f in "${translation_units[@]}"; do
             grep -qF "$PWD/$f" "$db" || continue
@@ -80,6 +80,8 @@ if [ ${#translation_units[@]} -gt 0 ] && command -v clang-tidy > /dev/null 2>&1;
             clang-tidy -p "$dir" --warnings-as-errors='*' --quiet "$f" \
                 || fail "$f has clang-tidy findings"
         done
+    else
+        skipped+=("clang-tidy")
     fi
 fi
 
