@@ -30,7 +30,9 @@ the CI does. It is also the only place some things can be checked: application
 templates consume the library template through `find_package`, so building them
 together is what proves the installed package actually works.
 
-Presets: `debug` (warnings as errors), `release`, `asan`, `tsan`, `tidy`.
+Presets: `debug` (warnings as errors), `release`, `asan`, `tsan`, `tidy`,
+`clang-libc++` (clang against libc++, which needs `libc++-dev` and
+`libc++abi-dev`).
 CMake, a compiler and Ninja are enough; the test framework is fetched during
 configuration.
 

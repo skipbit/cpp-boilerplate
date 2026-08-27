@@ -44,7 +44,9 @@ ctest --preset debug
 Nothing else has to be installed first: CMake, a compiler and Ninja are enough,
 and the test framework is fetched during configuration.
 
-Presets: `debug` (warnings as errors), `release`, `asan`, `tsan`, `tidy`.
+Presets: `debug` (warnings as errors), `release`, `asan`, `tsan`, `tidy`,
+`clang-libc++` (clang against libc++, which needs `libc++-dev` and
+`libc++abi-dev`).
 
 To build this repository instead - every template at once, which is what the CI
 does - see [CONTRIBUTING.md](CONTRIBUTING.md).
