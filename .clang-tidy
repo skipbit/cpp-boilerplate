@@ -138,14 +138,16 @@ CheckOptions:
     value: '8388608'
 
   # Misc options
-  # include-cleaner names the header that declares a symbol, and twice here it
-  # names one nobody writes: glibc puts the POSIX signal names in bits/ and asks
-  # for <signal.h> where <csignal> is the C++ spelling, and Qt's <QLabel> is a
-  # forwarding header that some versions of the check see through to qlabel.h.
-  # Narrowing what it asks about is better than switching it off, and better
-  # than a NOLINT. docs/coding-style.md has the measurement.
+  # include-cleaner names the header that declares a symbol, and three times
+  # here it names one nobody writes: glibc puts the POSIX signal names in bits/
+  # and asks for <signal.h> where <csignal> is the C++ spelling; glibc's
+  # <poll.h> is one line including <sys/poll.h>, so the check asks for the
+  # System V compatibility header rather than the POSIX one that forwards to it;
+  # and Qt's <QLabel> is a forwarding header that some versions of the check see
+  # through to qlabel.h. Narrowing what it asks about is better than switching
+  # it off, and better than a NOLINT. docs/coding-style.md has the measurement.
   - key: misc-include-cleaner.IgnoreHeaders
-    value: 'bits/.*;.*signal\.h;.*/Qt[A-Z][A-Za-z]*/.*'
+    value: 'bits/.*;.*signal\.h;.*sys/poll\.h;.*/Qt[A-Z][A-Za-z]*/.*'
   - key: misc-throw-by-value-catch-by-reference.CheckThrowTemporaries
     value: 'true'
   # Headers should contain declarations only - enforce strict separation
