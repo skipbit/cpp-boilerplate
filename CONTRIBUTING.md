@@ -45,9 +45,9 @@ and 22 traced a `dup(-1)` that 18 did not. A throwaway `FROM ubuntu:24.04` with
 -k 0` gets all the findings rather than the first.
 
 `.devcontainer/` holds the pinned toolchain - the same image the CI builds
-against, CMake 4.4 and Clang 21. Open the repository in it if you want the
-version of clang-tidy that decides whether the static analysis job is green,
-or if you want to run the presets that need a CMake newer than your
+against, CMake 4.4, GCC 14 and Clang 21. Open the repository in it if you want
+the version of clang-tidy that decides whether the static analysis job is
+green, or if you want to run the presets that need a CMake newer than your
 distribution ships.
 
 ## Before you commit
