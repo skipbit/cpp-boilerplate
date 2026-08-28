@@ -4,13 +4,14 @@
 # compiler and a standard library, and the two disagree. Measured with
 # -std=gnu++23 on stock toolchains, Ubuntu 24.04 and 26.04:
 #
-#                            24.04                          26.04
-#                     GCC 13  Clang+stdc++  Clang+c++   GCC 15  Clang+c++
-#   std::expected      yes        NO           yes        yes      yes
-#   std::print          NO        NO           yes        yes      yes
-#   std::mdspan         NO        NO           yes         NO      yes
-#   std::stacktrace    yes       yes            NO        yes       NO
-#   std::views::zip    yes       yes            NO        yes       NO
+#                              24.04                      26.04
+#                     GCC 13   Clang    Clang    GCC 15   Clang    Clang
+#                             +stdc++    +c++            +stdc++    +c++
+#   std::expected      yes       NO      yes      yes      yes      yes
+#   std::print          NO       NO      yes      yes      yes      yes
+#   std::mdspan         NO       NO      yes       NO       NO      yes
+#   std::stacktrace    yes      yes       NO      yes      yes       NO
+#   std::views::zip    yes      yes       NO      yes      yes       NO
 #
 # The two libraries are missing different things, and 26.04 does not fix that -
 # so no choice of supported set makes the problem go away. It moves.
@@ -32,7 +33,9 @@
 #
 # The code this template ships calls none of this. It stays inside what every
 # environment above provides, so the presets it advertises work on a stock
-# machine. This is for the code that replaces it.
+# machine. This is for the code that replaces it - and because nothing calls it,
+# cmake/test does: ctest puts the function to whatever toolchain is building, in
+# each of the three ways it can refuse and the one way it can agree.
 # docs/standard-library.md has the table and the reasoning.
 
 include_guard(GLOBAL)
