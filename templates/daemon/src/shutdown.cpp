@@ -7,7 +7,7 @@
 #include <limits>
 #include <system_error>
 
-#include <sys/poll.h>
+#include <poll.h>
 #include <sys/signalfd.h>
 #include <sys/types.h>
 #include <unistd.h>

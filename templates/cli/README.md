@@ -31,7 +31,9 @@ ctest --preset debug
 CMake, a compiler and Ninja are enough; CLI11 and the test framework are fetched
 during configuration.
 
-Presets: `debug` (warnings as errors), `release`, `asan`, `tsan`, `tidy`.
+Presets: `debug` (warnings as errors), `release`, `asan`, `tsan`, `tidy`,
+`clang-libc++` (clang against libc++, which needs `libc++-dev` and
+`libc++abi-dev`).
 
 What it does out of the box, so that there is something to run:
 
