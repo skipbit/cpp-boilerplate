@@ -29,3 +29,13 @@ add_test(NAME mydaemon.answers-signals
 
 # Longer than it needs, because a sanitizer build is slower than this one.
 set_tests_properties(mydaemon.answers-signals PROPERTIES TIMEOUT 120)
+
+# The shared check on cppbp_require_std_feature, which the CMake modules bring
+# with them. It is registered by whoever is the top of the build: in this
+# repository that is the file that adds every template, so this condition is
+# false and nothing here runs twice; in the published copy of this template
+# there is no such file, cmake/test is a real directory rather than a symlink,
+# and this is what puts the tests in ctest.
+if(PROJECT_IS_TOP_LEVEL)
+    add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/../cmake/test" cmake-test)
+endif()

@@ -44,3 +44,13 @@ add_test(
             -D "CXX_FLAGS=${CMAKE_CXX_FLAGS} ${mylib_sanitizer_flags}"
             -D "LINKER_FLAGS=${mylib_sanitizer_flags}"
             -P "${CMAKE_CURRENT_LIST_DIR}/run-install-consume.cmake")
+
+# The shared check on cppbp_require_std_feature, which the CMake modules bring
+# with them. It is registered by whoever is the top of the build: in this
+# repository that is the file that adds every template, so this condition is
+# false and nothing here runs twice; in the published copy of this template
+# there is no such file, cmake/test is a real directory rather than a symlink,
+# and this is what puts the tests in ctest.
+if(PROJECT_IS_TOP_LEVEL)
+    add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/../cmake/test" cmake-test)
+endif()

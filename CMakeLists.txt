@@ -64,3 +64,15 @@ endif()
 if(CPPBP_BUILD_QT)
     add_subdirectory(templates/qt)
 endif()
+
+# The shared check on cppbp_require_std_feature. Last, and outside the four
+# blocks above, because it belongs to the modules rather than to any template -
+# and because it reads the standard library the modules measured, which is not
+# known until one of them has been configured.
+#
+# Each template registers the same tests when it is the top of a build, which is
+# how the published copies get them. Here that condition is false for all four,
+# so this line is the only registration in the monorepo.
+if(CPPBP_BUILD_TESTING)
+    add_subdirectory(cmake/test)
+endif()

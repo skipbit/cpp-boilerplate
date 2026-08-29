@@ -24,3 +24,13 @@ add_test(NAME mycli.runs COMMAND "${CMAKE_COMMAND}"
     -D "PROGRAM=$<TARGET_FILE:mycli>"
     -D "WORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/run"
     -P "${CMAKE_CURRENT_LIST_DIR}/run-program.cmake")
+
+# The shared check on cppbp_require_std_feature, which the CMake modules bring
+# with them. It is registered by whoever is the top of the build: in this
+# repository that is the file that adds every template, so this condition is
+# false and nothing here runs twice; in the published copy of this template
+# there is no such file, cmake/test is a real directory rather than a symlink,
+# and this is what puts the tests in ctest.
+if(PROJECT_IS_TOP_LEVEL)
+    add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/../cmake/test" cmake-test)
+endif()
