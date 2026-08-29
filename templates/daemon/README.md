@@ -264,6 +264,16 @@ refuses the configuration, and a required check nothing reports waits forever.
 The job named "what this project can be built with" lists every row in its
 summary, and which of them were built.
 
+A job named "what BUILD_SHARED_LIBS=ON builds and installs" runs on every pull
+request, and here it installs no shared library at all: `mydaemon_lib` says
+`STATIC`, so the flag does not reach it, and the prefix gets the binary and
+the unit. It prints the number of libraries it read, zero included, rather
+than letting a green tick stand for a count nobody has seen. What it checks
+here is that the flag changes nothing: configure, build, test and install
+still pass with it on, and the installed program asks the loader for nothing
+it cannot find. If that is not a claim worth keeping, deleting the job is a
+reasonable answer - nothing else in the workflow depends on it.
+
 There is no SBOM here, unlike the library template. `install(SBOM)` refuses to
 describe a target that links one it cannot attribute, and a dependency fetched
 with `FetchContent` is never installed or exported, so CLI11 cannot be
