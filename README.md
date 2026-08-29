@@ -73,6 +73,9 @@ does - see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Supported environments
 
+Linux. There is no Windows job and no macOS job, and neither is a target this is
+built for: the table below is the whole of it.
+
 Verified in CI on every change:
 
 | | compilers | standard library |

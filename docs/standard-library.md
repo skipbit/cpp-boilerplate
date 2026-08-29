@@ -7,6 +7,10 @@ operating system, a compiler and a standard library - three things, not two.
 The set is the CI matrix. When this document and the matrix disagree, the
 matrix is right.
 
+The operating system is Linux on every row of that matrix. Windows and macOS are
+not built and not supported; a row for either would be a decision about what
+this is for, not a column left blank.
+
 Measured with `-std=gnu++23`, on the stock toolchains of each release. `24 gcc`
 is GCC 13.3.0, `24 clang` is Clang 18.1.3, `26 gcc` is GCC 15.2.0, `26 clang` is
 Clang 21.1.8; `stdc++` and `c++` are the standard library each was given.
