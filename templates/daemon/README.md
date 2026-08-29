@@ -264,6 +264,15 @@ refuses the configuration, and a required check nothing reports waits forever.
 The job named "what this project can be built with" lists every row in its
 summary, and which of them were built.
 
+A job named "the library, built shared" is in the checks list here and never
+runs. It runs where the top-level `CMakeLists.txt` calls
+`generate_export_header(`, and this project has no such call: `mydaemon_lib` is
+static and is never installed, an arrangement for testing this program. So it
+is grey on every pull request, and grey reads like absent without being it -
+required status checks count a skipped job as a passing one, so naming that one
+gets you a check that builds nothing and reports success. It has something to
+say the day this project installs a shared library, and nothing until then.
+
 There is no SBOM here, unlike the library template. `install(SBOM)` refuses to
 describe a target that links one it cannot attribute, and a dependency fetched
 with `FetchContent` is never installed or exported, so CLI11 cannot be

@@ -123,6 +123,14 @@ refuses the configuration, and a required check nothing reports waits forever.
 The job named "what this project can be built with" lists every row in its
 summary, and which of them were built.
 
+A job named "the library, built shared" builds `mylib` with
+`BUILD_SHARED_LIBS=ON`, which no other job does. It runs while the top-level
+`CMakeLists.txt` calls `generate_export_header(` - move that call under a
+subdirectory, or delete it along with the target it belongs to, and the job
+goes grey rather than red. Required status checks count a skipped job as a
+passing one, so the name stays in the list after it has stopped standing for
+anything, and grey beside it is the whole of the notice.
+
 ## Documents
 
 - [docs/coding-style.md](docs/coding-style.md) - what `.clang-format` and

@@ -298,6 +298,16 @@ a row in GitHub's required status checks: a required check nothing reports waits
 forever. The job named "what this project can be built with" lists every row in
 its summary, and which of them were built.
 
+A job named "the library, built shared" is in the checks list here and never
+runs. It runs where the top-level `CMakeLists.txt` calls
+`generate_export_header(`, and this program has no such call: `myapp_core`,
+`myapp_bridge` and `myapp_ui` are static and exist so the tests have something
+to link. So it is grey on every pull request, and grey reads like absent
+without being it - required status checks count a skipped job as a passing one,
+so naming that one gets you a check that builds nothing and reports success. It
+has something to say the day something here is installed as a shared library,
+which an application rarely is.
+
 There is no SBOM here, for the reason the command line and service templates
 have none. `install(SBOM)` refuses a target that references one it cannot
 attribute, and this program links static libraries that exist for its tests and
