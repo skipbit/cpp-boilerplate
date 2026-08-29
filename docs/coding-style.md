@@ -70,12 +70,23 @@ line above it.
 
 Some findings are neither, and the answer is then to narrow what the check asks
 rather than to switch it off. `misc-include-cleaner` names the header that
-declares a symbol; for the POSIX signal names, glibc's answer is a `bits/`
-header nobody may include, or `<signal.h>` where `<csignal>` is the spelling
-that belongs in C++ and works. `misc-include-cleaner.IgnoreHeaders:
-'bits/.*;.*signal\.h'` says so, and the check keeps its opinion about every
-other header. It goes inside `CheckOptions:`; appended after it, YAML puts it
-somewhere clang-tidy does not read and it silently does nothing.
+declares a symbol, and three times here that is a header nobody writes.
+
+- For the POSIX signal names, glibc's answer is a `bits/` header nobody may
+  include, or `<signal.h>` where `<csignal>` is the spelling that belongs in
+  C++ and works.
+- For `poll`, `pollfd` and `POLLIN`, glibc's `<poll.h>` is a single line
+  including `<sys/poll.h>`, so the declarations sit in the System V
+  compatibility header and the check asks for that one. `<poll.h>` is the
+  spelling POSIX defines, and the one the daemon template uses.
+- `<QLabel>` is a forwarding header that some versions of the check see through
+  to `qlabel.h`.
+
+`misc-include-cleaner.IgnoreHeaders:
+'bits/.*;.*signal\.h;.*sys/poll\.h;.*/Qt[A-Z][A-Za-z]*/.*'` says so, and the
+check keeps its opinion about every other header. It goes inside
+`CheckOptions:`; appended after it, YAML puts it somewhere clang-tidy does not
+read and it silently does nothing.
 
 ### What is switched off, and why
 
