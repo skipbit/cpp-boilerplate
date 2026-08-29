@@ -44,7 +44,9 @@ ctest --preset debug
 Nothing else has to be installed first: CMake, a compiler and Ninja are enough,
 and the test framework is fetched during configuration.
 
-Presets: `debug` (warnings as errors), `release`, `asan`, `tsan`, `tidy`.
+Presets: `debug` (warnings as errors), `release`, `asan`, `tsan`, `tidy`,
+`clang-libc++` (clang against libc++, which needs `libc++-dev` and
+`libc++abi-dev`).
 
 To build this repository instead - every template at once, which is what the CI
 does - see [CONTRIBUTING.md](CONTRIBUTING.md).
@@ -84,12 +86,14 @@ Verified in CI on every change:
 | Ubuntu 26.04 LTS | GCC 15, Clang 21 | libstdc++, libc++ |
 
 The stock toolchains are used deliberately: if it needs a compiler you do not
-have yet, it is not a starting point.
+have yet, it is not a starting point. That table is the floor, not the
+environment this is developed in.
 
-A second set of jobs builds in a pinned image
-(`.devcontainer/Dockerfile`, CMake 4.4 and Clang 21), so that a green build
-means the code changed rather than the environment. The dev container uses the
-same image.
+A second set of jobs builds in a pinned image (`.devcontainer/Dockerfile`:
+Ubuntu 24.04 with CMake 4.4, GCC 14 and Clang 21), so that a green build means
+the code changed rather than the environment. Newer than the floor on purpose -
+the two answer different questions, and only one of them is a requirement. The
+dev container uses the same image.
 
 The language standard is C++23, set per target with `target_compile_features`.
 Which is less than it sounds: a standard is a compiler and a standard library,
