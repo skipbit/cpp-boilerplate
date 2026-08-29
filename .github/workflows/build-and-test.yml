@@ -155,11 +155,11 @@ jobs:
             test -s /tmp/prefix/lib/sbom/mylib/mylib.spdx.json
           '
 
-  # Everything above builds the library static, which is what BUILD_SHARED_LIBS
-  # defaults to. Nothing built it shared, and shared is the configuration the
-  # library template is written for: the export header, the hidden visibility
-  # and the SOVERSION are all inert in a static build, so the code that
-  # implements them was never once executed by a check.
+  # Everything above leaves BUILD_SHARED_LIBS at its default, which is OFF.
+  # Nothing built shared, and shared is the configuration the library template
+  # is written for: the export header, the hidden visibility and the SOVERSION
+  # are all inert in a static build, so the code that implements them was never
+  # once executed by a check.
   #
   # What that was worth was measured by deleting MYLIB_EXPORT from one
   # declaration in include/mylib/text.hpp. The static build passed every test.
@@ -168,61 +168,128 @@ jobs:
   # package, which is the one place a hidden symbol can show up. Forgetting the
   # macro on a new public function is the ordinary mistake in a library written
   # this way, and it was invisible to the entire repository.
-  shared-library:
-    name: the library, built shared
+  #
+  # Named after the configuration rather than after the library it hopes to
+  # find, which is what lets the same job run in all four templates without an
+  # `if:` to skip it - see the comment above the matching job in
+  # ci/build-and-test.yml, the copy the published repositories get.
+  #
+  # Qt is switched on here, unlike everywhere else in this file, and it is the
+  # only place BUILD_SHARED_LIBS=ON meets it. Left off, the risk of the qt
+  # template under this flag would first be reported by a published repository,
+  # after the templates went out - which is the worst order to learn it in. On
+  # here it is one row of this pull request's own CI.
+  shared-libs:
+    name: what BUILD_SHARED_LIBS=ON builds and installs
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 
-      - name: Install ninja
+      # The qml6-module-* packages are the QML modules an interface imports at
+      # run time, for the reason the native rows install them: on 24.04 nothing
+      # pulls them in, and a program that builds and links then fails to start.
+      - name: Install ninja and Qt
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ninja-build
+          sudo apt-get install -y --no-install-recommends \
+            ninja-build \
+            qt6-base-dev \
+            qt6-declarative-dev \
+            qml6-module-qtqml \
+            qml6-module-qtqml-models \
+            qml6-module-qtqml-workerscript \
+            qml6-module-qtquick \
+            qml6-module-qtquick-controls \
+            qml6-module-qtquick-layouts \
+            qml6-module-qtquick-templates \
+            qml6-module-qtquick-window
 
       - name: Record what this job is actually building with
         run: |
           cmake --version | head -1
           g++ --version | head -1
 
-      # Qt stays off, as it is by default. It installs no library, and the
-      # question here is about the template that does.
       - name: Configure, build and test with BUILD_SHARED_LIBS=ON
+        env:
+          QT_QPA_PLATFORM: offscreen
         run: |
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_SHARED_LIBS=ON \
+            -DCPPBP_BUILD_QT=ON \
             -DCPPBP_WARNINGS_AS_ERRORS=ON
           cmake --build build
           ctest --test-dir build --output-on-failure --no-tests=error
 
-      # docs/versioning.md says the installed library is lib<name>.so.<MAJOR>,
-      # so that something linked against one major version cannot silently load
-      # another. That is a property of the file, not of the build log, and it is
-      # read back here rather than assumed: without a SONAME the loader falls
-      # back to the file name it was given and the promise is not kept.
-      - name: Check the installed library carries a versioned SONAME
+      # Read out of the install prefix rather than out of the build tree. The
+      # two differ by more than tidiness: GoogleTest is fetched with
+      # FetchContent and honours BUILD_SHARED_LIBS, so it leaves its own .so
+      # files in the build tree and none in the prefix. Counted there, this
+      # would be counting somebody else's libraries.
+      #
+      # Three claims, all of them positive. Asserting that nothing was built is
+      # not among them: what a project installs is its own business.
+      - name: Read back what was installed
         run: |
           prefix="$RUNNER_TEMP/prefix"
           cmake --install build --prefix "$prefix"
 
-          # Matching nothing is a failure, not a pass, for the reason the lint
-          # steps say it: a shared build that installed no shared library has
-          # checked nothing, and looks like one that checked everything.
-          mapfile -t libraries < <(find "$prefix" -name '*.so.*' -type f | sort)
-          if [ ${#libraries[@]} -eq 0 ]; then
-            echo "::error::BUILD_SHARED_LIBS=ON installed no shared library"
+          # (1) Installing nothing is a failure. A build that handed over
+          # nothing has checked nothing, and looks in the list exactly like one
+          # that checked everything - the reason the lint steps say the same.
+          mapfile -t installed < <(find "$prefix" -type f | sort)
+          if [ ${#installed[@]} -eq 0 ]; then
+            echo "::error::BUILD_SHARED_LIBS=ON installed nothing at all"
             exit 1
           fi
+          echo "installed ${#installed[@]} files"
 
+          # (2) docs/versioning.md says the installed library is
+          # lib<name>.so.<MAJOR>, so that something linked against one major
+          # version cannot silently load another. That is a property of the
+          # file, not of the build log: without a SONAME the loader falls back
+          # to the file name it was given, and the promise is not kept.
+          #
+          # The count is printed before the loop and whatever it is, so that a
+          # green tick never stands over a number nobody has seen.
+          mapfile -t libraries < <(
+            find "$prefix" \( -name '*.so' -o -name '*.so.*' \) -type f | sort)
+          echo "examined ${#libraries[@]} installed shared libraries"
           for library in "${libraries[@]}"; do
             soname=$(readelf -d "$library" | sed -n 's/.*SONAME.*\[\(.*\)\].*/\1/p')
             name=${library#"$prefix"/}
-            echo "$name -> ${soname:-no SONAME}"
+            echo "  $name -> ${soname:-no SONAME}"
             if [[ ! $soname =~ \.so\.[0-9]+$ ]]; then
               echo "::error::$name has no versioned SONAME (${soname:-none})"
               exit 1
             fi
           done
+
+          # (3) Nothing installed asks the loader for a library that is not
+          # there. The prefix's own library directories are on the path, so
+          # this is about the closure of what was handed over: a program that
+          # needs a .so its own project built but did not install fails here,
+          # and so does one left pointing at a build-tree path.
+          libpath=$(find "$prefix" \( -name '*.so' -o -name '*.so.*' \) -type f \
+            -printf '%h\n' | sort -u | paste -sd: -)
+          checked=0
+          missing=0
+          for file in "${installed[@]}"; do
+            # ELF by its first four bytes rather than by asking `file`, whose
+            # wording is not a promise. A prefix holds headers, .cmake files and
+            # desktop entries too, and ldd has nothing to say about those.
+            [ "$(head -c 4 "$file" | od -An -tx1 | tr -d ' \n')" = "7f454c46" ] || continue
+            checked=$((checked + 1))
+            gone=$(LD_LIBRARY_PATH="$libpath" ldd "$file" 2>/dev/null \
+              | grep 'not found' || true)
+            if [ -n "$gone" ]; then
+              echo "::error::${file#"$prefix"/} asks for a library that is not there"
+              echo "$gone"
+              missing=$((missing + 1))
+            fi
+          done
+          echo "resolved the loader's needs for $checked installed ELF files"
+          [ "$missing" -eq 0 ]
 
   # The shared pinned image has no Qt in it, deliberately: it is shared with
   # three templates that have no window, and a 250MB layer none of them use is a
