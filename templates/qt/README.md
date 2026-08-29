@@ -298,6 +298,18 @@ a row in GitHub's required status checks: a required check nothing reports waits
 forever. The job named "what this project can be built with" lists every row in
 its summary, and which of them were built.
 
+A job named "what BUILD_SHARED_LIBS=ON builds and installs" runs on every pull
+request, and here it installs no shared library at all: `myapp_core`,
+`myapp_bridge` and `myapp_ui` all say `STATIC`, so the flag does not reach
+them, and the prefix gets the binary and the desktop entry. The Qt libraries
+the program links are shared, and are the system's rather than this project's,
+so they are not in that count. The job prints the number either way, zero
+included, rather than letting a green tick stand for a count nobody has seen.
+What it checks here is that the flag changes nothing: configure, build, test
+and install still pass with it on, and the installed program asks the loader
+for nothing it cannot find. If that is not a claim worth keeping, deleting the
+job is a reasonable answer - nothing else in the workflow depends on it.
+
 There is no SBOM here, for the reason the command line and service templates
 have none. `install(SBOM)` refuses a target that references one it cannot
 attribute, and this program links static libraries that exist for its tests and

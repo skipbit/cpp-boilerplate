@@ -123,6 +123,18 @@ refuses the configuration, and a required check nothing reports waits forever.
 The job named "what this project can be built with" lists every row in its
 summary, and which of them were built.
 
+A job named "what BUILD_SHARED_LIBS=ON builds and installs" is the only one
+that builds `mylib` as a shared library; every other build here leaves it
+static, which is what `BUILD_SHARED_LIBS` defaults to. The export header, the
+hidden visibility and `SOVERSION` do nothing in a static build, so forgetting
+the export macro on a new public function - the ordinary mistake in a library
+written this way - passes every other check and fails this one. Green means
+that it configured, built, tested and installed with `BUILD_SHARED_LIBS=ON`,
+that every shared library it installed carries a versioned SONAME, and that
+nothing installed asks the loader for a library that is not there. Installing
+nothing is a failure, and it prints how many libraries it read: a check whose
+subject is missing looks like one that found nothing wrong.
+
 ## Documents
 
 - [docs/coding-style.md](docs/coding-style.md) - what `.clang-format` and
