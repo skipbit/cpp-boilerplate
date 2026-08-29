@@ -84,6 +84,13 @@ trade you should make deliberately rather than discover.
 `libmylib.so.MAJOR` and a consumer that linked against MAJOR 1 will not
 silently load MAJOR 2.
 
+Static is the default, and none of that reaches a static build: the export
+header, the hidden visibility and `SOVERSION` are all inert until the library
+is a `.so`. So a library project has one CI job that builds it with
+`BUILD_SHARED_LIBS=ON` and reads the SONAME back out of what it installed,
+rather than out of the build log. A program project has no such job, having no
+library to install.
+
 The package version file is generated with:
 
 - `SameMinorVersion` while MAJOR is `0`

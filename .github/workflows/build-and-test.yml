@@ -1,6 +1,6 @@
 # Reusable: everything that has to hold before a change is allowed in.
 #
-# Two kinds of job, because there are two different questions:
+# Each of the first three jobs is a different question:
 #
 #   native  - does this build with what people actually have? Ubuntu's own
 #             compilers and CMake, no extra repositories. If this is green,
@@ -8,6 +8,12 @@
 #   pinned  - does this build in a fixed environment? Versions are frozen in
 #             .devcontainer/Dockerfile, which the dev container also uses, so a
 #             failure here is a real change and never a surprise upgrade.
+#   shared  - does the library still work when it is a .so? The other two build
+#             it static, which is the default, and a static build never reaches
+#             the export header, the hidden visibility or the SOVERSION.
+#
+# Then the qt template, in the image it ships rather than the shared one, and
+# the linters.
 name: build and test
 
 on:
@@ -148,6 +154,75 @@ jobs:
             cmake --install /tmp/build --prefix /tmp/prefix
             test -s /tmp/prefix/lib/sbom/mylib/mylib.spdx.json
           '
+
+  # Everything above builds the library static, which is what BUILD_SHARED_LIBS
+  # defaults to. Nothing built it shared, and shared is the configuration the
+  # library template is written for: the export header, the hidden visibility
+  # and the SOVERSION are all inert in a static build, so the code that
+  # implements them was never once executed by a check.
+  #
+  # What that was worth was measured by deleting MYLIB_EXPORT from one
+  # declaration in include/mylib/text.hpp. The static build passed every test.
+  # The shared build failed to link, with "undefined reference to
+  # mylib::text::squeeze" - from the program that consumes the installed
+  # package, which is the one place a hidden symbol can show up. Forgetting the
+  # macro on a new public function is the ordinary mistake in a library written
+  # this way, and it was invisible to the entire repository.
+  shared-library:
+    name: the library, built shared
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install ninja
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build
+
+      - name: Record what this job is actually building with
+        run: |
+          cmake --version | head -1
+          g++ --version | head -1
+
+      # Qt stays off, as it is by default. It installs no library, and the
+      # question here is about the template that does.
+      - name: Configure, build and test with BUILD_SHARED_LIBS=ON
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=ON \
+            -DCPPBP_WARNINGS_AS_ERRORS=ON
+          cmake --build build
+          ctest --test-dir build --output-on-failure --no-tests=error
+
+      # docs/versioning.md says the installed library is lib<name>.so.<MAJOR>,
+      # so that something linked against one major version cannot silently load
+      # another. That is a property of the file, not of the build log, and it is
+      # read back here rather than assumed: without a SONAME the loader falls
+      # back to the file name it was given and the promise is not kept.
+      - name: Check the installed library carries a versioned SONAME
+        run: |
+          prefix="$RUNNER_TEMP/prefix"
+          cmake --install build --prefix "$prefix"
+
+          # Matching nothing is a failure, not a pass, for the reason the lint
+          # steps say it: a shared build that installed no shared library has
+          # checked nothing, and looks like one that checked everything.
+          mapfile -t libraries < <(find "$prefix" -name '*.so.*' -type f | sort)
+          if [ ${#libraries[@]} -eq 0 ]; then
+            echo "::error::BUILD_SHARED_LIBS=ON installed no shared library"
+            exit 1
+          fi
+
+          for library in "${libraries[@]}"; do
+            soname=$(readelf -d "$library" | sed -n 's/.*SONAME.*\[\(.*\)\].*/\1/p')
+            name=${library#"$prefix"/}
+            echo "$name -> ${soname:-no SONAME}"
+            if [[ ! $soname =~ \.so\.[0-9]+$ ]]; then
+              echo "::error::$name has no versioned SONAME (${soname:-none})"
+              exit 1
+            fi
+          done
 
   # The shared pinned image has no Qt in it, deliberately: it is shared with
   # three templates that have no window, and a 250MB layer none of them use is a
