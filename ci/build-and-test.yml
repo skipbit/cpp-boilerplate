@@ -9,19 +9,9 @@
 #                     container also uses, so a failure here is a real change
 #                     and never a surprise upgrade.
 #   shared-libs     - what does BUILD_SHARED_LIBS=ON build and install? Every
-#                     other job leaves it off, which is the default, so a
-#                     project that has an export header, hidden visibility or a
-#                     SOVERSION has them set up by code nothing has run.
+#                     other job leaves it off, which is the default.
 #   static-analysis - does it pass clang-tidy and clang-format? In the pinned
 #                     image, so that everyone is arguing with the same version.
-#
-# The third is named after the configuration rather than after what it hopes to
-# find, and that is the whole reason it needs no condition. "The library, built
-# shared" is only true of a project that has a library, so it had to be asked
-# for first and skipped otherwise - and a skipped job is a passing one to a
-# required status check. BUILD_SHARED_LIBS=ON is a configuration every project
-# has. What it builds and installs is a question every project can answer, so
-# the job runs everywhere and reports what it found, zero included.
 #
 # And one job before them that builds nothing: it asks the project which native
 # rows it has. Not every project has all of them, and a row a project cannot
@@ -80,13 +70,6 @@ jobs:
       # be built against libc++ at all, so two of the rows below are not a
       # failure it can fix. It says so at configure time; this reads the same
       # declaration and does not ask.
-      #
-      # It used to ask a third, whether the project generates an export header,
-      # so that the shared build could be skipped where the answer was no. That
-      # was a prediction read out of CMakeLists.txt about what a build would
-      # produce, standing in for the build. The job below installs and looks
-      # instead, which is both the more direct question and one every project
-      # can be asked.
       - name: Ask the project what it can be built with
         id: ask
         run: |
@@ -277,14 +260,7 @@ jobs:
   # package - the one place a hidden symbol shows up. Forgetting the macro on a
   # new public function is the ordinary mistake in a library written this way.
   #
-  # No `if:`. This job used to be called "the library, built shared" and asked
-  # the `project` job whether there was a library first, because the name is
-  # only true where there is one. That made it grey in three templates out of
-  # four, and a skipped job is a passing one to a required status check - the
-  # same green-for-nothing this file refuses everywhere else, arriving through
-  # a job instead of a row.
-  #
-  # The name is the fix. BUILD_SHARED_LIBS=ON is a configuration, not a
+  # No condition on this job. BUILD_SHARED_LIBS=ON is a configuration, not a
   # discovery: every project has it, so what it builds and installs is a
   # question every project can answer. A project with no library to install
   # answers "none", which is a result rather than an absence, and the job says
