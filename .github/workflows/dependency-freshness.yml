@@ -182,14 +182,25 @@ jobs:
 
       # One open issue at a time: a weekly job that opens a new issue every week
       # trains everyone to ignore the label.
+      #
+      # The list arrives as an environment variable, not as a ${{ }} expansion:
+      # an expansion is pasted in before bash reads the script, so the backticks
+      # this list wraps versions in ran as command substitutions and took the
+      # versions with them - a green job, and an issue reading "pinned ,
+      # current". The list carries tag names read from other projects' releases,
+      # which would be pasted in the same way.
       - name: Open or update an issue
         if: steps.compare.outputs.stale != ''
         env:
           GH_TOKEN: ${{ github.token }}
+          STALE: ${{ steps.compare.outputs.stale }}
         run: |
           set -euo pipefail
           title="Dependencies are behind"
-          body=$(printf 'These pins are behind what is currently published.\n\n%s\nThis issue is updated by the dependency-freshness workflow; it is not a to-do list with a deadline.\n' "${{ steps.compare.outputs.stale }}")
+          # The blank line before the closing paragraph is written here, because
+          # the list has none: the output delimiter takes its trailing newline,
+          # and without one the paragraph joins the last bullet.
+          body=$(printf 'These pins are behind what is currently published.\n\n%s\n\nThis issue is updated by the dependency-freshness workflow; it is not a to-do list with a deadline.\n' "$STALE")
 
           existing=$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number // empty')
           if [ -n "$existing" ]; then
