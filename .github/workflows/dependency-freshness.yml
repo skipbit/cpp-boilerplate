@@ -182,14 +182,19 @@ jobs:
 
       # One open issue at a time: a weekly job that opens a new issue every week
       # trains everyone to ignore the label.
+      #
+      # STALE goes through env:. A ${{ }} expansion is pasted in before bash
+      # reads the line, and the backticks in the list would run as commands.
       - name: Open or update an issue
         if: steps.compare.outputs.stale != ''
         env:
           GH_TOKEN: ${{ github.token }}
+          STALE: ${{ steps.compare.outputs.stale }}
         run: |
           set -euo pipefail
           title="Dependencies are behind"
-          body=$(printf 'These pins are behind what is currently published.\n\n%s\nThis issue is updated by the dependency-freshness workflow; it is not a to-do list with a deadline.\n' "${{ steps.compare.outputs.stale }}")
+          # \n\n: the list ends without a newline of its own.
+          body=$(printf 'These pins are behind what is currently published.\n\n%s\n\nThis issue is updated by the dependency-freshness workflow; it is not a to-do list with a deadline.\n' "$STALE")
 
           existing=$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number // empty')
           if [ -n "$existing" ]; then
