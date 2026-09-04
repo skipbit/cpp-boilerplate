@@ -41,8 +41,15 @@ jobs:
     needs: version
     uses: ./.github/workflows/build-and-test.yml
 
+  # main and every pull request run this one as well. A release that runs less
+  # than they do was checked less than the commit it was cut from, so a gate
+  # added to main-check.yml belongs here in the same change.
+  verify-presets:
+    needs: version
+    uses: ./.github/workflows/preset-check.yml
+
   publish:
-    needs: verify
+    needs: [verify, verify-presets]
     runs-on: ubuntu-24.04
     permissions:
       contents: write # creating a release writes to the repository
