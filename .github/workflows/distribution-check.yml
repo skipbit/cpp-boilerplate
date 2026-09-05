@@ -25,19 +25,19 @@ on:
     - cron: "0 7 * * 1" # Mondays, 07:00 UTC
   workflow_dispatch:
 
-# Publishing starts this check, and publishing is done one template at a time,
-# so a set of them starts a run every few seconds. Run in parallel they finish
-# in whatever order they finish in, which lets the run from the first publish -
-# red, and right to be, with the others still behind - land after the run from
-# the last one and leave a red badge on a repository that is up to date. Queued
-# instead: the last run to start is the last to finish, so the badge shows the
-# state of the world rather than which run happened to win.
+# Publishing starts this check, one template at a time, so a set of them starts
+# runs within a minute of each other. Left to run in parallel they finish in
+# whatever order they finish in, which lets an earlier one - red, and right to
+# be, with the rest still behind - land after the last and leave a red badge on
+# a repository that is already up to date.
 #
-# Nothing is cancelled: a run already comparing is answering a question that
-# was true when it started, and the answer costs fifteen seconds.
+# In one group they queue, and the last to start is the last to finish. A run
+# that is only waiting does not survive to be that answer: the next arrival
+# replaces it, which is what a concurrency group does unless asked otherwise,
+# and is why the newest is the one that counts. A run already comparing is left
+# to finish - fifteen seconds for an answer that was true when it started.
 concurrency:
-  group: distribution-check
-  cancel-in-progress: false
+  group: ${{ github.workflow }}
 
 permissions:
   contents: read

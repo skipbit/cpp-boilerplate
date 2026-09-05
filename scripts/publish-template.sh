@@ -27,10 +27,10 @@ set -euo pipefail
 # The account the template repositories live under. Override to publish elsewhere.
 readonly owner="${CPPBP_OWNER:-skipbit}"
 
-# This repository, named rather than spelled out at each use: a published
-# template points back to it twice, once as its homepage and once as the check
-# that compares it with here, and those two have to be the same place.
-readonly source_repo="${owner}/cpp-boilerplate"
+# This repository. Each published repository is named after it, so is the
+# homepage they are given, and so is the check that compares the two - one
+# string here, or three elsewhere that can drift apart.
+readonly source_repo="cpp-boilerplate"
 
 # Copied to the same path. A template that ships its own copy keeps it.
 readonly shared=(
@@ -77,7 +77,7 @@ root=$(cd "$(dirname "$0")/.." && pwd)
 src="$root/templates/$name"
 [ -d "$src" ] || die "no template at templates/$name"
 
-repo="cpp-boilerplate-$name"
+repo="${source_repo}-$name"
 source_commit=$(git -C "$root" rev-parse --short HEAD)
 # Not required for --assemble-to: nothing is recorded and nothing is published,
 # so there is no claim for a dirty tree to make false.
@@ -200,7 +200,7 @@ git push --force --quiet origin main
 # README says where it goes instead, in its third line.
 gh repo edit "${owner}/${repo}" \
     --description "A C++ ${name} template: CMake, CI, sanitizers, static analysis and tests, working from the first commit. Generated from cpp-boilerplate. 0BSD." \
-    --homepage "https://github.com/${source_repo}" \
+    --homepage "https://github.com/${owner}/${source_repo}" \
     --enable-issues=false \
     --template
 gh api -X PUT "repos/${owner}/${repo}/topics" \
@@ -246,20 +246,17 @@ fi
 
 echo "Published https://github.com/${owner}/${repo}"
 
-# The distribution check is red from the moment a distributed file lands on
-# main until every template has been published again, and it says why. What it
-# cannot see is the publish that makes it green: its triggers are a push to
-# main, a Monday and a hand, and this is none of them - so the red outlives the
-# fact it reports for as long as it takes somebody to remember, on the one
-# badge that is about whether people have been given what is here.
+# distribution-check.yml says why it is red. What it cannot see is the publish
+# that makes it green, a publish being none of the triggers it lists, so the
+# red outlives the fact it reports for as long as it takes somebody to
+# remember to start it by hand.
 #
 # Started on every publish rather than on the last one, because this script
 # publishes a single template and cannot know which one is last. The runs in
-# between are red and correctly so: the templates not yet pushed really are
-# behind, and that is the same statement the check makes at any other time.
+# between are red, and right to be.
 #
 # Not fatal. The publish has already happened, and a check that was not started
 # is a smaller thing to be wrong than a publish reported as failed. gh itself
 # is not checked for: --push has needed it since the repository view above.
-gh workflow run distribution-check.yml --repo "$source_repo" \
-    || echo "warning: could not start the distribution check on ${source_repo}; start it by hand" >&2
+gh workflow run distribution-check.yml --repo "${owner}/${source_repo}" \
+    || echo "warning: could not start the distribution check; start it by hand" >&2
