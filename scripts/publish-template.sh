@@ -27,6 +27,11 @@ set -euo pipefail
 # The account the template repositories live under. Override to publish elsewhere.
 readonly owner="${CPPBP_OWNER:-skipbit}"
 
+# This repository. Each published repository is named after it, so is the
+# homepage they are given, and so is the check that compares the two - one
+# string here, or three elsewhere that can drift apart.
+readonly source_repo="cpp-boilerplate"
+
 # Copied to the same path. A template that ships its own copy keeps it.
 readonly shared=(
     .clang-format
@@ -72,7 +77,7 @@ root=$(cd "$(dirname "$0")/.." && pwd)
 src="$root/templates/$name"
 [ -d "$src" ] || die "no template at templates/$name"
 
-repo="cpp-boilerplate-$name"
+repo="${source_repo}-$name"
 source_commit=$(git -C "$root" rev-parse --short HEAD)
 # Not required for --assemble-to: nothing is recorded and nothing is published,
 # so there is no claim for a dirty tree to make false.
@@ -118,7 +123,7 @@ done
 if [ -n "$assemble_to" ]; then
     mkdir -p "$assemble_to"
     cp -a "$work/." "$assemble_to/"
-    echo "Assembled ${repo} from cpp-boilerplate@${source_commit} into ${assemble_to}"
+    echo "Assembled ${repo} from ${source_repo}@${source_commit} into ${assemble_to}"
     exit 0
 fi
 
@@ -155,10 +160,10 @@ git config user.email "$(git -C "$root" config user.email)"
 git add -A
 git commit -q -m "Publish the ${name} template
 
-Assembled from cpp-boilerplate@${source_commit}. This repository is generated:
+Assembled from ${source_repo}@${source_commit}. This repository is generated:
 changes belong in the source, not here."
 
-echo "Assembled ${repo} from cpp-boilerplate@${source_commit}:"
+echo "Assembled ${repo} from ${source_repo}@${source_commit}:"
 git -c core.pager=cat ls-files | sed 's/^/  /'
 echo
 
@@ -185,6 +190,36 @@ fi
 git remote add origin "https://${owner}@github.com/${owner}/${repo}.git"
 git push --force --quiet origin main
 
+# distribution-check.yml says why it is red. What it cannot see is the publish
+# that makes it green, a publish being none of the triggers it lists, so the
+# red outlives the fact it reports for as long as it takes somebody to remember
+# to start it by hand.
+#
+# Started here rather than at the end because the template is live from the
+# push above, and everything below can still die - a repository setting, a
+# workflow GitHub has not caught up with. None of that makes what was published
+# any less published, or the stale red any less worth clearing.
+#
+# Started on every publish rather than on the last one, because this script
+# publishes a single template and cannot know which one is last. The runs in
+# between are red, and right to be.
+#
+# Only when this commit is the one the check will read. The run is dispatched
+# against the source repository's default branch, so publishing ahead of the
+# push - the order CONTRIBUTING gives for a template being added - would have
+# it assemble from an older main and report this repository behind, which is
+# false and cannot be acted on. That push starts the check by itself.
+#
+# Not fatal either way: the publish has already happened, and a check that was
+# not started is a smaller thing to be wrong than a publish reported as failed.
+if [ "$(gh api "repos/${owner}/${source_repo}/commits/main" --jq '.sha' 2> /dev/null)" \
+    = "$(git -C "$root" rev-parse HEAD)" ]; then
+    gh workflow run distribution-check.yml --repo "${owner}/${source_repo}" \
+        || echo "warning: could not start the distribution check; start it by hand" >&2
+else
+    echo "note: this commit is not on ${source_repo} main yet; pushing it starts the check" >&2
+fi
+
 # Everything about the repository that is not a file, applied on every publish
 # rather than once at creation. A setting that only ran inside `gh repo create`
 # can never be corrected, and can never reach a repository published before it
@@ -194,8 +229,8 @@ git push --force --quiet origin main
 # report filed here is answered by nobody and deleted by the next publish. The
 # README says where it goes instead, in its third line.
 gh repo edit "${owner}/${repo}" \
-    --description "A C++ ${name} template: CMake, CI, sanitizers, static analysis and tests, working from the first commit. Generated from cpp-boilerplate. 0BSD." \
-    --homepage "https://github.com/${owner}/cpp-boilerplate" \
+    --description "A C++ ${name} template: CMake, CI, sanitizers, static analysis and tests, working from the first commit. Generated from ${source_repo}. 0BSD." \
+    --homepage "https://github.com/${owner}/${source_repo}" \
     --enable-issues=false \
     --template
 gh api -X PUT "repos/${owner}/${repo}/topics" \
@@ -240,3 +275,4 @@ fi
     || die "${disabled_workflow} is ${workflow_state} on ${owner}/${repo}; it will run on a closed issue tracker and fail"
 
 echo "Published https://github.com/${owner}/${repo}"
+
