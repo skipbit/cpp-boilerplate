@@ -182,9 +182,10 @@ Which gives the order: add the row and commit it, publish the template, then
 push this repository. The other way round puts a link into the published README
 that leads to a repository that does not exist yet.
 
-`distribution-check.yml` runs after every push to `main` and asks, for each
-directory under `templates/`, whether the repository it is published to still
-matches what would be assembled now. It is the third badge in `README.md`.
+`distribution-check.yml` runs after every push to `main`, and again after each
+publish, and asks, for each directory under `templates/`, whether the
+repository it is published to still matches what would be assembled now. It is
+the third badge in `README.md`.
 
 That badge is red for as long as `main` contains a change to a distributed file
 that has not been published, which is exactly as long as people are being given
@@ -196,7 +197,9 @@ ignore it.
 **A change outside `templates/` is a change to every template**, so publishing
 the one you were working on does not finish it: everything already published is
 behind until it is published too. Merging is not publishing, and the failing job
-prints the commands.
+prints the commands. Run them and the badge goes green by itself: publishing
+starts the check, so the last template out is what turns it, and the runs in
+between are red because the rest are still behind.
 
 Publishing changes nothing outside this repository. A template listed
 somewhere else stays listed the way it was until that place is edited by hand,

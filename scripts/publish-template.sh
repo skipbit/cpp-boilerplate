@@ -27,6 +27,11 @@ set -euo pipefail
 # The account the template repositories live under. Override to publish elsewhere.
 readonly owner="${CPPBP_OWNER:-skipbit}"
 
+# This repository, named rather than spelled out at each use: a published
+# template points back to it twice, once as its homepage and once as the check
+# that compares it with here, and those two have to be the same place.
+readonly source_repo="${owner}/cpp-boilerplate"
+
 # Copied to the same path. A template that ships its own copy keeps it.
 readonly shared=(
     .clang-format
@@ -195,7 +200,7 @@ git push --force --quiet origin main
 # README says where it goes instead, in its third line.
 gh repo edit "${owner}/${repo}" \
     --description "A C++ ${name} template: CMake, CI, sanitizers, static analysis and tests, working from the first commit. Generated from cpp-boilerplate. 0BSD." \
-    --homepage "https://github.com/${owner}/cpp-boilerplate" \
+    --homepage "https://github.com/${source_repo}" \
     --enable-issues=false \
     --template
 gh api -X PUT "repos/${owner}/${repo}/topics" \
@@ -240,3 +245,21 @@ fi
     || die "${disabled_workflow} is ${workflow_state} on ${owner}/${repo}; it will run on a closed issue tracker and fail"
 
 echo "Published https://github.com/${owner}/${repo}"
+
+# The distribution check is red from the moment a distributed file lands on
+# main until every template has been published again, and it says why. What it
+# cannot see is the publish that makes it green: its triggers are a push to
+# main, a Monday and a hand, and this is none of them - so the red outlives the
+# fact it reports for as long as it takes somebody to remember, on the one
+# badge that is about whether people have been given what is here.
+#
+# Started on every publish rather than on the last one, because this script
+# publishes a single template and cannot know which one is last. The runs in
+# between are red and correctly so: the templates not yet pushed really are
+# behind, and that is the same statement the check makes at any other time.
+#
+# Not fatal. The publish has already happened, and a check that was not started
+# is a smaller thing to be wrong than a publish reported as failed. gh itself
+# is not checked for: --push has needed it since the repository view above.
+gh workflow run distribution-check.yml --repo "$source_repo" \
+    || echo "warning: could not start the distribution check on ${source_repo}; start it by hand" >&2

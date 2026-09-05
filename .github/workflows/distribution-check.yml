@@ -25,6 +25,20 @@ on:
     - cron: "0 7 * * 1" # Mondays, 07:00 UTC
   workflow_dispatch:
 
+# Publishing starts this check, and publishing is done one template at a time,
+# so a set of them starts a run every few seconds. Run in parallel they finish
+# in whatever order they finish in, which lets the run from the first publish -
+# red, and right to be, with the others still behind - land after the run from
+# the last one and leave a red badge on a repository that is up to date. Queued
+# instead: the last run to start is the last to finish, so the badge shows the
+# state of the world rather than which run happened to win.
+#
+# Nothing is cancelled: a run already comparing is answering a question that
+# was true when it started, and the answer costs fifteen seconds.
+concurrency:
+  group: distribution-check
+  cancel-in-progress: false
+
 permissions:
   contents: read
 
