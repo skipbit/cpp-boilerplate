@@ -197,8 +197,9 @@ ignore it.
 **A change outside `templates/` is a change to every template**, so publishing
 the one you were working on does not finish it: everything already published is
 behind until it is published too. Merging is not publishing, and the failing job
-prints the commands. Run them and the badge goes green by itself: publishing
-starts the check, so the last template out is what turns it.
+prints the commands. Run them and the last one turns the badge: a publish
+starts the check, so nobody has to remember to. It says so on stderr when it
+could not - the only case where the badge is left waiting for a hand.
 
 Publishing changes nothing outside this repository. A template listed
 somewhere else stays listed the way it was until that place is edited by hand,
