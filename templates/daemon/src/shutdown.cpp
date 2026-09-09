@@ -29,6 +29,17 @@ auto watched() -> sigset_t
     return set;
 }
 
+// poll counts milliseconds in an int, and reads a negative one as "for ever" -
+// which is what an interval longer than 24 days, or one already spent, would
+// become.
+auto milliseconds_until(std::chrono::steady_clock::time_point deadline) -> int
+{
+    const auto left =
+        std::chrono::duration_cast<std::chrono::milliseconds>(deadline - std::chrono::steady_clock::now());
+    const auto capped = std::clamp<std::chrono::milliseconds::rep>(left.count(), 0, std::numeric_limits<int>::max());
+    return static_cast<int>(capped);
+}
+
 }  // namespace
 
 Watcher::Watcher()
@@ -51,13 +62,15 @@ Watcher::Watcher()
 
 auto Watcher::wait(std::chrono::milliseconds limit) -> service::Wakeup
 {
-    // poll counts milliseconds in an int, and reads a negative one as "for
-    // ever" - which is what an interval longer than 24 days would become.
-    const auto capped = std::min<std::chrono::milliseconds::rep>(limit.count(), std::numeric_limits<int>::max());
+    // A deadline rather than the interval itself. A signal this does not watch
+    // for ends the poll below with EINTR, and asking again for the interval
+    // would start the wait over every time one arrived - so a process being
+    // profiled, or stopped and continued, would never reach its next run.
+    const auto deadline = std::chrono::steady_clock::now() + limit;
 
     for (;;) {
         pollfd watching{.fd = descriptor_.get(), .events = POLLIN, .revents = 0};
-        const int ready = ::poll(&watching, 1, static_cast<int>(capped));
+        const int ready = ::poll(&watching, 1, milliseconds_until(deadline));
         if (ready > 0) {
             break;
         }

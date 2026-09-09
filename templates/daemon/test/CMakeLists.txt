@@ -8,6 +8,7 @@ include(GoogleTest)
 add_executable(mydaemon_test
     options_test.cpp
     service_test.cpp
+    shutdown_test.cpp
     task_test.cpp
     unique_fd_test.cpp)
 target_link_libraries(mydaemon_test PRIVATE mydaemon_lib GTest::gtest_main)
