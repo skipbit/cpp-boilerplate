@@ -15,7 +15,4 @@ FetchContent_Declare(
     EXCLUDE_FROM_ALL     # do not install GoogleTest alongside this project
 )
 
-# Windows: link the same CRT as the rest of the build.
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-
 FetchContent_MakeAvailable(googletest)
