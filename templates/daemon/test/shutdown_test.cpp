@@ -3,6 +3,7 @@
 #include <chrono>
 #include <csignal>
 #include <thread>
+#include <utility>
 
 #include <pthread.h>
 
@@ -87,6 +88,35 @@ public:
 
 private:
     sigset_t previous_{};
+};
+
+/// A thread that is joined however the test leaves - including through the
+/// exception Watcher::wait throws, which would otherwise reach ~std::thread
+/// while it is still joinable and end the process in std::terminate.
+///
+/// Not std::jthread, which says this in one word: libc++ 18 is one of the six
+/// configurations this is built in, and does not have it.
+class JoinedThread {
+public:
+    explicit JoinedThread(std::thread running)
+        : running_{std::move(running)}
+    {
+    }
+
+    ~JoinedThread()
+    {
+        if (running_.joinable()) {
+            running_.join();
+        }
+    }
+
+    JoinedThread(const JoinedThread&) = delete;
+    JoinedThread(JoinedThread&&) = delete;
+    auto operator=(const JoinedThread&) -> JoinedThread& = delete;
+    auto operator=(JoinedThread&&) -> JoinedThread& = delete;
+
+private:
+    std::thread running_;
 };
 
 /// Takes whatever the wait under test did not, so that a signal left pending is
@@ -175,12 +205,12 @@ TEST(Watcher, EndsWithinItsLimitWhileOtherSignalsInterruptIt)
     // that the last one lands at 400ms on a loaded machine too. Late ones would
     // arrive after the wait had already ended, and this test would pass having
     // interrupted nothing.
-    const std::jthread interrupter{[waiting, started, between] {
+    const JoinedThread interrupter{std::thread{[waiting, started, between] {
         for (int sent = 1; sent <= interruptions; ++sent) {
             std::this_thread::sleep_until(started + (between * sent));
             ::pthread_kill(waiting, SIGUSR1);
         }
-    }};
+    }}};
 
     const auto woke = watcher.wait(limit);
     const auto elapsed = std::chrono::steady_clock::now() - started;
