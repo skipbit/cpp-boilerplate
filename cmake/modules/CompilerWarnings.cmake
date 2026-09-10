@@ -1,6 +1,10 @@
 # Warnings are the cheapest static analysis available. This module turns them on
 # per target, so that dependencies fetched into the build tree are not affected.
 #
+# GCC and Clang are what the choice below is between, and anything else is given
+# the GCC set. This is built and tested on Linux only, so a flag for a third
+# compiler would be one nothing here has ever run.
+#
 # Usage:
 #   include(CompilerWarnings)
 #   cppbp_set_warnings(mylib PRIVATE)
