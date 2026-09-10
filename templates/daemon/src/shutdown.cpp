@@ -29,6 +29,25 @@ auto watched() -> sigset_t
     return set;
 }
 
+// Rounded up, for the reason options.cpp rounds the interval up: what is left
+// of a wait must not become nothing until it has actually run out, or the
+// smallest interval the options can produce - one millisecond - is polled for
+// zero and the loop spins. Written out rather than with std::chrono::ceil,
+// which clang-tidy 18 reports as a symbol no included header provides.
+//
+// poll counts milliseconds in an int and reads a negative one as "for ever",
+// so both ends are clamped.
+auto milliseconds_until(std::chrono::steady_clock::time_point deadline) -> int
+{
+    const auto left = deadline - std::chrono::steady_clock::now();
+    auto whole = std::chrono::duration_cast<std::chrono::milliseconds>(left);
+    if (whole < left) {
+        whole += std::chrono::milliseconds{1};
+    }
+    const auto capped = std::clamp<std::chrono::milliseconds::rep>(whole.count(), 0, std::numeric_limits<int>::max());
+    return static_cast<int>(capped);
+}
+
 }  // namespace
 
 Watcher::Watcher()
@@ -51,13 +70,22 @@ Watcher::Watcher()
 
 auto Watcher::wait(std::chrono::milliseconds limit) -> service::Wakeup
 {
-    // poll counts milliseconds in an int, and reads a negative one as "for
-    // ever" - which is what an interval longer than 24 days would become.
-    const auto capped = std::min<std::chrono::milliseconds::rep>(limit.count(), std::numeric_limits<int>::max());
+    // Capped before it becomes a point in time, because steady_clock counts
+    // nanoseconds: an interval of more than about 292 years overflows the
+    // addition rather than producing a distant deadline, and poll cannot be
+    // asked for more than INT_MAX milliseconds anyway.
+    const auto capped = std::chrono::milliseconds{
+        std::min<std::chrono::milliseconds::rep>(limit.count(), std::numeric_limits<int>::max())};
+
+    // A deadline rather than the interval itself. A signal this does not watch
+    // for ends the poll below with EINTR, and asking again for the interval
+    // would start the wait over every time one arrived - so a process being
+    // profiled, or stopped and continued, would never reach its next run.
+    const auto deadline = std::chrono::steady_clock::now() + capped;
 
     for (;;) {
         pollfd watching{.fd = descriptor_.get(), .events = POLLIN, .revents = 0};
-        const int ready = ::poll(&watching, 1, static_cast<int>(capped));
+        const int ready = ::poll(&watching, 1, milliseconds_until(deadline));
         if (ready > 0) {
             break;
         }
