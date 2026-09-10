@@ -11,7 +11,10 @@ add_executable(mydaemon_test
     shutdown_test.cpp
     task_test.cpp
     unique_fd_test.cpp)
-target_link_libraries(mydaemon_test PRIVATE mydaemon_lib GTest::gtest_main)
+# Threads because shutdown_test.cpp starts one and signals it by hand.
+# mydaemon_lib links Threads PRIVATE, and the test framework is meant to be
+# swappable, so neither can be relied on to carry it here.
+target_link_libraries(mydaemon_test PRIVATE mydaemon_lib GTest::gtest_main Threads::Threads)
 cppbp_set_warnings(mydaemon_test PRIVATE)
 cppbp_set_sanitizers(mydaemon_test PRIVATE)
 cppbp_enable_clang_tidy(mydaemon_test)
