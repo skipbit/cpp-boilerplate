@@ -128,7 +128,10 @@ jobs:
             suites=0
             for v in $(seq "$CLANG_PINNED" $((CLANG_PINNED + 9))); do
               url="https://apt.llvm.org/${CODENAME}/dists/llvm-toolchain-${CODENAME}-${v}/Release"
-              status=$(curl -sSL -o /dev/null -w "%{http_code}" "$url")
+              # --proto-redir, because -L would otherwise follow a redirect
+              # back to http and report a 200 that was fetched in the clear.
+              status=$(curl -sSL --proto '=https' --proto-redir '=https' \
+                -o /dev/null -w "%{http_code}" "$url")
               case "$status" in
                 200) ;;
                 404) break ;;
