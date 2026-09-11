@@ -368,6 +368,12 @@ jobs:
       - name: Check that every image pins the same toolchain
         run: ./scripts/check-toolchain-pins.sh
 
+      # Dependabot reads .github/workflows and not ci/, so a bump it proposes
+      # would leave the workflows the published templates run behind. This is
+      # what says so, here, rather than as a pull request in each of them.
+      - name: Check that every action is pinned to one version
+        run: ./scripts/check-workflow-pins.sh
+
       - name: Run clang-tidy as part of the build
         run: |
           docker run --rm -v "$PWD":/src:ro cpp-boilerplate-toolchain:ci bash -euxo pipefail -c '
