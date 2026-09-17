@@ -48,6 +48,7 @@ jobs:
           load: true
           tags: cpp-boilerplate-toolchain:ci
           cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Build and test under the sanitizer
         run: |

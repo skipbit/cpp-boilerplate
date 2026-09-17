@@ -48,6 +48,7 @@ jobs:
           load: true
           tags: toolchain:ci
           cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       # Copied out of the read-only mount because the presets write their build
       # directory next to the source.
