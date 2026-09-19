@@ -7,37 +7,17 @@
 #   ./scripts/publish-template.sh lib --assemble-to DIR  # leave the tree in DIR
 #   ./scripts/publish-template.sh --all --push           # the same, for every template
 #
-# --assemble-to stops after assembling: no build, no commit, no push. It exists
-# so that something else can look at the tree - distribution-check.yml compares
-# it with what is actually published - without that comparison growing its own
-# copy of the rules below, which is how the two would come to disagree.
+# --assemble-to hands the tree over without building or committing, which is how
+# distribution-check.yml compares it with what is published.
 #
-# --all is the unit the work actually has. Everything outside templates/ is
-# shared, so one change to a shared file leaves every published template behind
-# at once, and the question is never "which one was I working on" but "which
-# ones are behind", whose answer is all of them. One command also means the
-# distribution check starts once, at the end, rather than after each of four
-# publishes - three of which report a set that is still half old.
-#
-# The published repository is a build product, not a fork: it is force-pushed
-# from what is here. A template directory alone is not enough to publish -
-# it needs the license and the linting configuration that every template
-# shares, and the shared CMake modules it reaches through a symlink - so this
-# script is the definition of what a published template actually contains.
-#
-# What it contains is decided by one question: the published repository is
-# where somebody starts developing, not a shelf the template is displayed on.
-# So it gets the environment (.devcontainer), the hooks, the release script and
-# a full set of workflows, and not only the sources.
+# This script is the definition of what a published template contains, and the
+# published repository is force-pushed from it.
 
 set -euo pipefail
 
 # The account the template repositories live under. Override to publish elsewhere.
 readonly owner="${CPPBP_OWNER:-skipbit}"
 
-# This repository. Each published repository is named after it, so is the
-# homepage they are given, and so is the check that compares the two - one
-# string here, or three elsewhere that can drift apart.
 readonly source_repo="cpp-boilerplate"
 
 # Copied to the same path. A template that ships its own copy keeps it.
@@ -60,13 +40,10 @@ readonly shared=(
     scripts/release.sh
 )
 
-# ci/<name>.yml becomes .github/workflows/<name>.yml. The monorepo's own
-# workflows in .github/workflows/ are not published: they build every template
-# together, which is not a thing a single project can do.
+# ci/<name>.yml becomes .github/workflows/<name>.yml. The workflows in
+# .github/workflows/ are this repository's own and are not published.
 readonly workflow_source="ci"
 
-# Shipped to whoever uses the template and switched off on the published
-# repository. Why is at the call below.
 readonly disabled_workflow="dependency-freshness.yml"
 
 die() { echo "error: $*" >&2; exit 1; }
@@ -101,9 +78,8 @@ esac
 
 root=$(cd "$(dirname "$0")/.." && pwd)
 
-# Which templates exist is read from the directory rather than written here. A
-# list written here is a list a new template gets left out of, and --all would
-# then quietly publish everything except the newest thing.
+# Read from the directory rather than listed here: a list is what a new template
+# gets left out of.
 names=()
 if $all; then
     for dir in "$root/templates"/*/; do
@@ -115,31 +91,17 @@ else
 fi
 
 source_commit=$(git -C "$root" rev-parse --short HEAD)
-# Not required for --assemble-to: nothing is recorded and nothing is published,
-# so there is no claim for a dirty tree to make false.
 if [ -z "$assemble_to" ] && [ -n "$(git -C "$root" status --porcelain)" ]; then
     die "the working tree is dirty; publish from a committed state so the record means something"
 fi
 
-# distribution-check.yml says why it is red. What it cannot see is the publish
-# that makes it green, a publish being none of the triggers it lists, so the
-# red outlives the fact it reports for as long as it takes somebody to remember
-# to start it by hand.
+# A publish is none of the triggers distribution-check.yml lists, so it is
+# started here. From the exit path, because a run that stops after a push has
+# published something and the check is what says so.
 #
-# Started from the exit path rather than beside the push, because everything
-# after a push can still die - a repository setting, a workflow GitHub has not
-# caught up with - and none of that makes what was published any less
-# published, or the stale red any less worth clearing. A run that stops halfway
-# through --all has published something too, and the check is what says so.
-#
-# Only when this commit is the one the check will read. The run is dispatched
-# against the source repository's default branch, so publishing ahead of the
-# push - the order CONTRIBUTING gives for a template being added - would have
-# it assemble from an older main and report this repository behind, which is
-# false and cannot be acted on. That push starts the check by itself.
-#
-# Not fatal either way: the publish has already happened, and a check that was
-# not started is a smaller thing to be wrong than a publish reported as failed.
+# Only when this commit is on main: the run is dispatched against the default
+# branch, so it would otherwise assemble from an older commit and report this
+# repository behind. Never fatal - the publish has already happened.
 start_distribution_check() {
     if [ "$(gh api "repos/${owner}/${source_repo}/commits/main" --jq '.sha' 2> /dev/null)" \
         = "$(git -C "$root" rev-parse HEAD)" ]; then
@@ -160,12 +122,9 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# The template's own copy wins, so a template can replace a shared file without
-# changing it for every other one. A directory is merged file by file rather
-# than taken whole: a template that ships its own .devcontainer/Dockerfile -
-# which is how a template that needs a system library is written - would
-# otherwise be published with no devcontainer.json beside it, and arrive
-# without the environment this script exists to hand over.
+# The template's own copy wins, per file. A directory is merged rather than
+# taken whole, so a template that ships only .devcontainer/Dockerfile still gets
+# the devcontainer.json beside it.
 add_shared() {
     local from=$1 to=$2
     if [ -d "$from" ]; then
@@ -187,11 +146,6 @@ publish_template() {
 
     local repo="${source_repo}-$name"
 
-    # The table in the README is the only index of which templates exist and
-    # where they went, so a template that is not in it is a template nobody can
-    # find. Checked here rather than in CI because publishing is the only moment
-    # the answer can change - and the clean tree above means this README is the
-    # one that is about to be public, not an uncommitted local edit.
     if $push && ! grep -q "github.com/${owner}/${repo}" "$root/README.md"; then
         die "README.md does not link ${owner}/${repo}; add its row to the table, and commit it, first"
     fi
@@ -211,10 +165,8 @@ publish_template() {
         add_shared "$f" ".github/workflows/$(basename "$f")"
     done
 
-    # Handing over the tree is the whole job in this mode. Deliberately before
-    # the build below: what is published is a set of files, so what gets
-    # compared with what is published is that same set of files and nothing
-    # derived from it.
+    # Before the build, so what is compared with what is published is the same
+    # set of files and nothing derived from it.
     if [ -n "$assemble_to" ]; then
         mkdir -p "$assemble_to"
         cp -a "$work/." "$assemble_to/"
@@ -224,9 +176,8 @@ publish_template() {
 
     cd "$work"
 
-    # Build what was assembled, not what it was assembled from. A template that
-    # only builds inside the monorepo is exactly the failure this script can
-    # introduce: a missing shared file shows up here and nowhere else.
+    # Build what was assembled, not what it was assembled from: a missing shared
+    # file shows up here and nowhere else.
     if command -v cmake > /dev/null 2>&1; then
         echo "Verifying the assembled ${name} tree..."
         local verify="$work/.verify"
@@ -234,11 +185,8 @@ publish_template() {
             || die "the assembled tree does not configure"
         cmake --build "$verify" > /dev/null \
             || die "the assembled tree does not build"
-        # --no-tests=error, because a tree that arrived without its tests is the
-        # failure this step is here to catch, and ctest calls finding none of
-        # them a success. The message says both: from here the two are one
-        # answer, which is that what was about to be published is not what was
-        # checked.
+        # --no-tests=error: a tree that arrived without its tests is what this
+        # step is here to catch, and ctest calls finding none of them a success.
         ctest --test-dir "$verify" --output-on-failure --no-tests=error > /dev/null \
             || die "the assembled tree does not pass its tests, or has none to run"
         rm -rf "$verify"
@@ -248,10 +196,8 @@ publish_template() {
     fi
 
     git init -q -b main
-    # The tree is assembled in a temporary directory, so neither this
-    # repository's local configuration nor a conditional include in the global
-    # one reaches it. Carry over whoever is publishing instead of naming a
-    # person here.
+    # A repository in a temporary directory inherits no user configuration, so
+    # the one publishing is carried over rather than named here.
     git config user.name "$(git -C "$root" config user.name)"
     git config user.email "$(git -C "$root" config user.email)"
     git add -A
@@ -271,10 +217,7 @@ changes belong in the source, not here."
 
     if gh repo view "${owner}/${repo}" > /dev/null 2>&1; then
         # The push below rewrites history, which leaves an open pull request
-        # unmergeable against a branch that no longer contains its base - and
-        # its author with nothing to read that explains why. The README asks
-        # people not to send one; this is what happens when somebody does
-        # anyway.
+        # unmergeable against a branch that no longer contains its base.
         local open_prs
         open_prs=$(gh pr list --repo "${owner}/${repo}" --state open --json number --jq 'length')
         [ "$open_prs" = "0" ] \
@@ -283,22 +226,15 @@ changes belong in the source, not here."
         gh repo create "${owner}/${repo}" --public
     fi
 
-    # HTTPS deliberately. Over SSH the push is made by whichever key the agent
-    # offers first, which is not necessarily the account that owns this
-    # repository; over HTTPS gh's credential helper picks the one that does.
+    # HTTPS deliberately: over SSH the push is made by whichever key the agent
+    # offers first, which is not necessarily the account that owns this one.
     git remote add origin "https://${owner}@github.com/${owner}/${repo}.git"
     git push --force --quiet origin main
     pushed=true
 
-    # Everything about the repository that is not a file, applied on every
-    # publish rather than once at creation. A setting that only ran inside
-    # `gh repo create` can never be corrected, and can never reach a repository
-    # published before it was written - so the second template would silently
-    # differ from the first.
-    #
-    # Issues are off: this repository is force-pushed from somewhere else, so a
-    # report filed here is answered by nobody and deleted by the next publish.
-    # The README says where it goes instead, in its third line.
+    # Applied on every publish rather than at creation, so a setting written
+    # later reaches the repositories published before it. Issues are off because
+    # a report filed on a generated repository is deleted by the next publish.
     gh repo edit "${owner}/${repo}" \
         --description "A C++ ${name} template: CMake, CI, sanitizers, static analysis and tests, working from the first commit. Generated from ${source_repo}. 0BSD." \
         --homepage "https://github.com/${owner}/${source_repo}" \
@@ -308,22 +244,11 @@ changes belong in the source, not here."
         -f 'names[]=cpp' -f 'names[]=cpp23' -f 'names[]=cmake' \
         -f 'names[]=template' -f 'names[]=project-template' -f "names[]=${name}" > /dev/null
 
-    # dependency-freshness is shipped to whoever uses the template and switched
-    # off here. This repository has nothing for it to find: its pins are copied
-    # from the source on every publish, so the place to fix one is never here -
-    # and its issue tracker is closed, so the job's only way of reporting would
-    # fail and leave a weekly red cross on a repository whose whole job is to
-    # look like a safe place to start. Switched off as a repository setting
-    # rather than as a condition in the file, because a condition would be
-    # copied into everybody's project and switch it off there too, which is the
-    # one place it is worth having.
-    #
-    # The state is read before it is set, because disabling one that is already
-    # disabled answers 403 rather than doing nothing, and every publish after
-    # the first would fail on it. It is read again afterwards, because a publish
-    # that quietly failed here would be discovered by the cross it exists to
-    # prevent. The wait is for the first publish: a workflow does not exist to
-    # the API until GitHub has processed the push that introduced it.
+    # Switched off as a repository setting rather than as a condition in the
+    # file, which would switch it off in everybody's project too. The state is
+    # read before it is set, because disabling an already disabled workflow
+    # answers 403. The wait is for the first publish: a workflow does not exist
+    # to the API until GitHub has processed the push that introduced it.
     local workflow_api="repos/${owner}/${repo}/actions/workflows/${disabled_workflow}"
     local workflow_state=""
     for _ in 1 2 3 4 5; do

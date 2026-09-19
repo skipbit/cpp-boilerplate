@@ -1,20 +1,12 @@
-# Guards the one claim this repository makes that its own CI cannot see: that
-# what people are given is what is here.
+# Guards the one claim this repository's own CI cannot see: that what people are
+# given is what is here.
 #
-# publish-template.sh is run by hand, and nothing noticed the gap between a
-# change landing on main and somebody remembering to publish it. So main could
-# be green while everyone who pressed Use this template was reading something
-# older - a build passing on code nobody has been given yet, which is the same
-# shape as a preset nothing runs.
+# Red means the published templates are behind, and stays red for exactly as
+# long as users are looking at the older thing. Do not narrow the comparison to
+# keep it green.
 #
-# Red means the published templates are behind. That is a true statement about
-# the world rather than a broken job: it stays red from the moment a distributed
-# file changes until the next publish, which is exactly how long users are
-# looking at the older thing. Do not narrow the comparison to keep it green.
-#
-# Not in ci/, deliberately. A published template has no business reporting on
-# this repository's publishing, and its README becomes somebody's own product
-# README, where a badge about somebody else's release cadence is noise.
+# Not in ci/: a published template has no business reporting on this
+# repository's publishing.
 name: distribution check
 
 on:
@@ -28,12 +20,8 @@ on:
 permissions:
   contents: read
 
-# `shell: bash` is not the shell a run step gets by default. The default is
-# `bash -e`; naming it explicitly gets `bash -eo pipefail`, so a command that
-# fails on the left of a pipe fails the step instead of being overwritten by
-# whatever came after it. Set once for the workflow rather than per step,
-# because the flags belong to the shell, not to whichever commands happen to be
-# in it today - a step added next month gets them without anybody remembering.
+# Naming the shell gets `bash -eo pipefail` rather than the default `bash -e`,
+# so a command that fails on the left of a pipe fails the step.
 defaults:
   run:
     shell: bash
@@ -45,15 +33,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # Which templates exist is read from the directory, and the repository
-      # each is published to is derived from this one's name. Neither is written
-      # out: a template added here and forgotten in a list written here is the
-      # failure this job exists to catch.
-      #
-      # The tree comes from publish-template.sh rather than from rules repeated
-      # here, because a second copy of "what a published template contains" is a
-      # second thing to keep in step, and this job would then pass by agreeing
-      # with itself.
+      # Templates are read from the directory and the tree comes from
+      # publish-template.sh: a second copy of either would let this job pass by
+      # agreeing with itself.
       - name: Compare each template with the repository it is published to
         run: |
           set -euo pipefail
@@ -81,10 +63,9 @@ jobs:
               continue
             fi
 
-            # Put the assembly where the published tree was and ask git. That is
-            # the same question the publish itself asks - git add -A of this
-            # tree against what is committed there - so the executable bit and
-            # .gitignore are handled the same way here as there.
+            # Put the assembly where the published tree was and ask git, which
+            # is the question the publish itself asks - so the executable bit
+            # and .gitignore are handled the same way here as there.
             find "$published" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
             cp -a "$assembled/." "$published/"
 
@@ -103,17 +84,14 @@ jobs:
 
           if [ -n "$behind" ]; then
             echo "Behind:${behind}"
-            # Said here as well as in CONTRIBUTING.md, because this is what
-            # somebody who has just seen the badge go red is actually reading.
             {
               echo
               echo "Anything outside templates/ is shared, so one change to it leaves every"
               echo "published template behind at once. Merging is not publishing; run this on"
               echo "main:"
               echo
-              # One command, whichever it is: naming each template invites
-              # publishing them one at a time, which is what leaves the set half
-              # old between runs and the check started once per template.
+              # One command: a line per template invites publishing them one at
+              # a time, which leaves the set half old between runs.
               if [ "$(echo "$behind" | wc -w)" -gt 1 ]; then
                 echo "    ./scripts/publish-template.sh --all --push"
               else
