@@ -10,8 +10,10 @@
 #                     and never a surprise upgrade.
 #   shared-libs     - what does BUILD_SHARED_LIBS=ON build and install? Every
 #                     other job leaves it off, which is the default.
-#   static-analysis - does it pass clang-tidy and clang-format? In the pinned
-#                     image, so that everyone is arguing with the same version.
+#   static-analysis - does it pass every linter? clang-tidy and clang-format on
+#                     the C++, shellcheck on the scripts, actionlint on the
+#                     workflows, hadolint on the Dockerfiles. In the pinned
+#                     image, so that everyone is arguing with the same versions.
 #
 # And one job before them that builds nothing: it asks the project which native
 # rows it has. Not every project has all of them, and a row a project cannot
@@ -384,7 +386,7 @@ jobs:
           [ "$missing" -eq 0 ]
 
   static-analysis:
-    name: clang-tidy and clang-format
+    name: every linter, in the pinned image
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
