@@ -1,0 +1,157 @@
+# Asks every morning whether anything in this repository's family is red, or has
+# quietly stopped running, and writes the answer where somebody will read it.
+#
+# Not in ci/: it reads this repository and the repositories published from it,
+# which is a set only this repository has.
+name: unseen red
+
+on:
+  schedule:
+    - cron: "0 21 * * *" # 06:00 JST, after the nightly builds
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  look:
+    name: nothing red, nothing gone quiet
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Ask every repository how its workflows ended
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          # Which repositories exist is read from templates/, the same way
+          # publishing decides what to publish.
+          repos=("$GITHUB_REPOSITORY")
+          for dir in templates/*/; do
+            repos+=("${GITHUB_REPOSITORY}-$(basename "$dir")")
+          done
+
+          now=$(date -u +%s)
+          looked=0
+          : > findings.tsv
+
+          # A workflow deleted from the default branch keeps its entry, its
+          # active state and its last run forever, so the file has to be asked
+          # for before a finding is believed - otherwise a workflow that was
+          # once made to fail on purpose is reported every morning.
+          still_there() {
+            gh api "repos/$1/contents/$2" --jq '.name' > /dev/null 2>&1
+          }
+
+          for repo in "${repos[@]}"; do
+            # disabled_manually is a decision - the freshness job is switched
+            # off on every published repository. Any other inactive state is
+            # GitHub switching something off by itself, which is the quiet
+            # failure this job is here to catch.
+            workflows=$(gh api "repos/${repo}/actions/workflows" --paginate \
+              --jq '.workflows[] | select(.state != "disabled_manually") | [.id, .name, .state, .path] | @tsv')
+
+            while IFS=$'\t' read -r id workflow state path; do
+              [ -n "$id" ] || continue
+              looked=$((looked + 1))
+              note=""
+              url="-"
+
+              if [ "$state" != active ]; then
+                note="GitHub switched it off (${state})"
+              else
+                run=$(gh api "repos/${repo}/actions/workflows/${id}/runs?status=completed&per_page=1" \
+                  --jq '.workflow_runs[0] | "\(.conclusion)\t\(.html_url)"')
+                if [ "$run" != null ]; then
+                  IFS=$'\t' read -r conclusion ran_at <<< "$run"
+                  case "$conclusion" in
+                    failure | timed_out | startup_failure | action_required)
+                      note="its last run ended in ${conclusion}"
+                      url="$ran_at"
+                      ;;
+                  esac
+                fi
+              fi
+
+              # How often a workflow is meant to run is read from the gap
+              # between its last two scheduled runs rather than from its cron,
+              # so a weekly job is not called quiet on a Tuesday. A workflow
+              # that runs on tags or pushes alone has no scheduled runs and is
+              # never called quiet.
+              if [ -z "$note" ]; then
+                mapfile -t scheduled < <(gh api \
+                  "repos/${repo}/actions/workflows/${id}/runs?event=schedule&per_page=2" \
+                  --jq '.workflow_runs[].created_at')
+                if [ "${#scheduled[@]}" -ge 2 ]; then
+                  last=$(date -u -d "${scheduled[0]}" +%s)
+                  before=$(date -u -d "${scheduled[1]}" +%s)
+                  gap=$((last - before))
+                  age=$((now - last))
+                  if [ "$gap" -gt 0 ] && [ "$age" -gt $((gap * 5 / 2)) ]; then
+                    note="no scheduled run for $((age / 3600))h, and it runs about every $((gap / 3600))h"
+                  fi
+                fi
+              fi
+
+              if [ -n "$note" ] && still_there "$repo" "$path"; then
+                printf '%s\t%s\t%s\t%s\n' "$repo" "$workflow" "$note" "$url" >> findings.tsv
+              fi
+            done <<< "$workflows"
+          done
+
+          # Nothing looked at is a broken probe, not a clean bill of health.
+          [ "$looked" -gt 0 ] || { echo "::error::no workflows were read"; exit 1; }
+          echo "read ${looked} workflow(s) across ${#repos[@]} repositories"
+          cat findings.tsv
+
+      - name: Say so in an issue, or say it is clear in the one already open
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          title="A check is red, or has gone quiet"
+          existing=$(gh issue list --state open --search "$title in:title" \
+            --json number --jq '.[0].number // empty')
+
+          if [ -s findings.tsv ]; then
+            {
+              echo "As of $(date -u '+%Y-%m-%d %H:%M UTC'):"
+              echo
+              echo "| repository | workflow | what |"
+              echo "| --- | --- | --- |"
+              while IFS=$'\t' read -r repo workflow note url; do
+                if [ "$url" = "-" ]; then
+                  printf '| %s | %s | %s |\n' "$repo" "$workflow" "$note"
+                else
+                  printf '| %s | %s | [%s](%s) |\n' "$repo" "$workflow" "$note" "$url"
+                fi
+              done < findings.tsv
+              echo
+              echo "A re-run that succeeds clears a line here, because each line is the"
+              echo "state of that workflow's last run rather than a list of failures."
+            } > body.md
+          else
+            {
+              echo "Everything was green at $(date -u '+%Y-%m-%d %H:%M UTC'), and nothing has"
+              echo "stopped running."
+              echo
+              echo "This issue stays open until somebody closes it. Closing it is how you say"
+              echo "you read it."
+            } > body.md
+            [ -n "$existing" ] || exit 0
+          fi
+
+          if [ -n "$existing" ]; then
+            gh issue edit "$existing" --body-file body.md
+            echo "updated #${existing}"
+          else
+            gh issue create --title "$title" --body-file body.md
+          fi
