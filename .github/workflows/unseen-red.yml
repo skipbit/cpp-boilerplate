@@ -1,0 +1,223 @@
+# Asks every morning whether anything in this repository's family is red, or has
+# quietly stopped running, and writes the answer where somebody will read it.
+#
+# Not in ci/: it reads this repository and the repositories published from it,
+# which is a set only this repository has.
+name: unseen red
+
+on:
+  schedule:
+    - cron: "0 21 * * *" # 06:00 JST, after the nightly builds
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  look:
+    name: nothing red, nothing gone quiet
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Ask every repository how its workflows ended
+        id: look
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          # A 404 is an answer; anything else is this job failing to ask. Kept
+          # apart, because a probe that cannot run must not read as green.
+          api() {
+            local out status=0
+            out=$(gh api "$1" --jq "$2" 2> api-error.log) || status=$?
+            if [ "$status" -eq 0 ]; then printf '%s' "$out"; return 0; fi
+            grep -q 'HTTP 404' api-error.log && return 2
+            cat api-error.log >&2
+            # Said on stderr: this runs inside a command substitution, which
+            # would otherwise capture the line instead of logging it.
+            echo "::error::could not read $1" >&2
+            exit 1
+          }
+
+          # Which repositories exist is read from templates/, the same way
+          # publishing decides what to publish.
+          shopt -s nullglob
+          repos=("$GITHUB_REPOSITORY")
+          for dir in templates/*/; do
+            repos+=("${GITHUB_REPOSITORY}-$(basename "$dir")")
+          done
+          [ "${#repos[@]}" -gt 1 ] || { echo "::error::no templates under templates/"; exit 1; }
+
+          now=$(date -u +%s)
+          : > findings.tsv
+
+          # The last completed run, and the two most recent scheduled ones.
+          runs_jq='{ last: ([.workflow_runs[] | select(.status == "completed")] | first),'
+          runs_jq+=' scheduled: [.workflow_runs[] | select(.event == "schedule") | .created_at] }'
+          runs_jq+=' | "\(.last.conclusion // "-") \(.last.html_url // "-")'
+          runs_jq+=' \(.scheduled[0] // "-") \(.scheduled[1] // "-")"'
+
+          note() { printf '%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "${4:--}" >> findings.tsv; }
+
+          for repo in "${repos[@]}"; do
+            # api() exits inside a command substitution, which ends that
+            # subshell and nothing else, so its status has to be acted on here.
+            status=0
+            branch=$(api "repos/${repo}" '.default_branch') || status=$?
+            if [ "$status" -eq 2 ]; then
+              note "$repo" "-" "there is no such repository yet"
+              continue
+            elif [ "$status" -ne 0 ]; then
+              exit 1
+            fi
+
+            # A workflow deleted from the default branch keeps its entry, its
+            # active state and its last run forever, so the directory is what
+            # decides which workflows still exist. This also leaves out the
+            # ones GitHub generates outside .github/workflows.
+            files=$(api "repos/${repo}/contents/.github/workflows" '.[].path')
+
+            # disabled_manually is a decision - the freshness job is switched
+            # off on every published repository. Any other inactive state is
+            # GitHub switching something off by itself, which is the quiet
+            # failure this job is here to catch.
+            workflows=$(api "repos/${repo}/actions/workflows?per_page=100" \
+              '.workflows[] | select(.state != "disabled_manually") | [.id, .name, .state, .path] | @tsv')
+
+            looked=0
+            while IFS=$'\t' read -r id workflow state path; do
+              [ -n "$id" ] || continue
+              printf '%s\n' "$files" | grep -qxF "$path" || continue
+              looked=$((looked + 1))
+
+              if [ "$state" != active ]; then
+                note "$repo" "$workflow" "GitHub switched it off (${state})"
+                continue
+              fi
+
+              # The default branch only: a red on somebody's pull request is
+              # that pull request's business, and its run would otherwise stay
+              # the last one this workflow has for months.
+              summary=$(api \
+                "repos/${repo}/actions/workflows/${id}/runs?branch=${branch}&per_page=50" \
+                "$runs_jq")
+              read -r conclusion url last before <<< "$summary"
+
+              # Anything that is not success, rather than a list of the ways to
+              # be red: a cancelled or skipped run is not a build that passed.
+              if [ "$conclusion" != - ] && [ "$conclusion" != success ]; then
+                note "$repo" "$workflow" "its last run ended in ${conclusion}" "$url"
+                continue
+              fi
+
+              # How often a workflow is meant to run is read from the gap
+              # between its last two scheduled runs rather than from its cron,
+              # so a weekly job is not called quiet on a Tuesday. One that runs
+              # on tags or pushes alone has no scheduled runs and is never
+              # called quiet.
+              if [ "$last" != - ] && [ "$before" != - ]; then
+                gap=$(( $(date -u -d "$last" +%s) - $(date -u -d "$before" +%s) ))
+                age=$(( now - $(date -u -d "$last" +%s) ))
+                if [ "$gap" -gt 0 ] && [ "$age" -gt $((gap * 5 / 2)) ]; then
+                  note "$repo" "$workflow" "no scheduled run for $((age / 3600))h, and it runs about every $((gap / 3600))h"
+                fi
+              fi
+            done <<< "$workflows"
+
+            # Per repository, because four repositories answering makes the
+            # fifth one's silence look like good news.
+            [ "$looked" -gt 0 ] || note "$repo" "-" "it has no workflows this job can see"
+            echo "${repo}: read ${looked} workflow(s) on ${branch}"
+          done
+
+          cat findings.tsv
+
+      - name: Say so in an issue, or say it is clear in the one already open
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PROBE: ${{ steps.look.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          title="A check is red, or has gone quiet"
+          # Quoted, and one match or none: an unquoted search is tokenised, and
+          # editing whichever issue came first would overwrite what somebody
+          # else wrote.
+          # The title has to be asked for as well as the number, or the filter
+          # below compares against a field that is not there and answers none.
+          matches=$(gh issue list --state open --search "\"$title\" in:title" \
+            --json number,title --jq '[.[] | select(.title == "'"$title"'")] | length')
+          existing=""
+          if [ "$matches" -gt 1 ]; then
+            echo "::error::${matches} open issues have this title; not editing any of them"
+            exit 1
+          elif [ "$matches" -eq 1 ]; then
+            existing=$(gh issue list --state open --search "\"$title\" in:title" \
+              --json number,title --jq '[.[] | select(.title == "'"$title"'")][0].number')
+          fi
+
+          was_clear=true
+          if [ -n "$existing" ]; then
+            gh issue view "$existing" --json body --jq '.body' > current.md
+            head -1 current.md | grep -q '^Everything was green' || was_clear=false
+          fi
+
+          escape() { printf '%s' "$1" | sed 's/|/\\|/g'; }
+
+          if [ "$PROBE" != success ]; then
+            {
+              echo "The morning check could not run at $(date -u '+%Y-%m-%d %H:%M UTC')."
+              echo
+              echo "Nothing here says anything about whether the repositories are green:"
+              echo "the reading failed. [The run says why](${RUN_URL})."
+            } > body.md
+          elif [ -s findings.tsv ]; then
+            {
+              echo "As of $(date -u '+%Y-%m-%d %H:%M UTC'):"
+              echo
+              echo "| repository | workflow | what |"
+              echo "| --- | --- | --- |"
+              while IFS=$'\t' read -r repo workflow what url; do
+                if [ "$url" = "-" ]; then
+                  printf '| %s | %s | %s |\n' "$repo" "$(escape "$workflow")" "$(escape "$what")"
+                else
+                  printf '| %s | %s | [%s](%s) |\n' "$repo" "$(escape "$workflow")" "$(escape "$what")" "$url"
+                fi
+              done < findings.tsv
+              echo
+              echo "A re-run that succeeds clears a line here, because each line is the"
+              echo "state of that workflow's last run rather than a list of failures."
+            } > body.md
+          else
+            {
+              echo "Everything was green at $(date -u '+%Y-%m-%d %H:%M UTC'), and nothing has"
+              echo "stopped running."
+              echo
+              echo "This issue stays open until somebody closes it. Closing it is how you say"
+              echo "you read it."
+            } > body.md
+            if [ -z "$existing" ]; then exit 0; fi
+          fi
+
+          if [ -z "$existing" ]; then
+            gh issue create --title "$title" --body-file body.md
+            exit 0
+          fi
+
+          gh issue edit "$existing" --body-file body.md
+          # Editing a body notifies nobody. When an issue that said everything
+          # was clear now says something is wrong, that has to arrive as a
+          # comment or the open issue is read once and never again.
+          if [ "$was_clear" = true ] && { [ "$PROBE" != success ] || [ -s findings.tsv ]; }; then
+            gh issue comment "$existing" --body-file body.md
+          fi
+          echo "updated #${existing}"
