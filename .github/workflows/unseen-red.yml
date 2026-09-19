@@ -40,7 +40,9 @@ jobs:
             if [ "$status" -eq 0 ]; then printf '%s' "$out"; return 0; fi
             grep -q 'HTTP 404' api-error.log && return 2
             cat api-error.log >&2
-            echo "::error::could not read $1"
+            # Said on stderr: this runs inside a command substitution, which
+            # would otherwise capture the line instead of logging it.
+            echo "::error::could not read $1" >&2
             exit 1
           }
 
@@ -65,11 +67,15 @@ jobs:
           note() { printf '%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "${4:--}" >> findings.tsv; }
 
           for repo in "${repos[@]}"; do
+            # api() exits inside a command substitution, which ends that
+            # subshell and nothing else, so its status has to be acted on here.
             status=0
             branch=$(api "repos/${repo}" '.default_branch') || status=$?
             if [ "$status" -eq 2 ]; then
               note "$repo" "-" "there is no such repository yet"
               continue
+            elif [ "$status" -ne 0 ]; then
+              exit 1
             fi
 
             # A workflow deleted from the default branch keeps its entry, its
@@ -146,8 +152,10 @@ jobs:
           # Quoted, and one match or none: an unquoted search is tokenised, and
           # editing whichever issue came first would overwrite what somebody
           # else wrote.
+          # The title has to be asked for as well as the number, or the filter
+          # below compares against a field that is not there and answers none.
           matches=$(gh issue list --state open --search "\"$title\" in:title" \
-            --json number --jq '[.[] | select(.title == "'"$title"'")] | length' 2> /dev/null || echo 0)
+            --json number,title --jq '[.[] | select(.title == "'"$title"'")] | length')
           existing=""
           if [ "$matches" -gt 1 ]; then
             echo "::error::${matches} open issues have this title; not editing any of them"
