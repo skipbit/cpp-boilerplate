@@ -109,11 +109,16 @@ jobs:
               echo
               echo "Anything outside templates/ is shared, so one change to it leaves every"
               echo "published template behind at once. Merging is not publishing; run this on"
-              echo "main, once for each template above:"
+              echo "main:"
               echo
-              for name in $behind; do
-                echo "    ./scripts/publish-template.sh ${name} --push"
-              done
+              # One command, whichever it is: naming each template invites
+              # publishing them one at a time, which is what leaves the set half
+              # old between runs and the check started once per template.
+              if [ "$(echo "$behind" | wc -w)" -gt 1 ]; then
+                echo "    ./scripts/publish-template.sh --all --push"
+              else
+                echo "    ./scripts/publish-template.sh${behind} --push"
+              fi
             } | tee -a "$GITHUB_STEP_SUMMARY"
             exit 1
           fi

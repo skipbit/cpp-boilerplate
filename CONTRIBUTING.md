@@ -161,6 +161,7 @@ is the only arrangement in which a broken install rule fails a build.
 ```sh
 ./scripts/publish-template.sh lib            # assemble, report, throw away
 ./scripts/publish-template.sh lib --push     # assemble and publish
+./scripts/publish-template.sh --all --push   # every template, in one go
 ```
 
 Without `--push` it assembles the tree, builds and tests it, prints the file
@@ -197,9 +198,10 @@ ignore it.
 **A change outside `templates/` is a change to every template**, so publishing
 the one you were working on does not finish it: everything already published is
 behind until it is published too. Merging is not publishing, and the failing job
-prints the commands. Run them and the last one turns the badge: a publish
-starts the check, so nobody has to remember to. It says so on stderr when it
-could not - the only case where the badge is left waiting for a hand.
+prints the command to run on `main`, which is `--all` whenever more than one
+template is behind. That run turns the badge: it starts the check once, after
+the last push, so nobody has to remember to. It says so on stderr when it could
+not - the only case where the badge is left waiting for a hand.
 
 Publishing changes nothing outside this repository. A template listed
 somewhere else stays listed the way it was until that place is edited by hand,
