@@ -336,7 +336,7 @@ jobs:
           '
 
   static-analysis:
-    name: clang-tidy and clang-format
+    name: every linter, in the pinned image
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
