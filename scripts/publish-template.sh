@@ -101,12 +101,23 @@ trap 'rm -rf "$work"' EXIT
 cp -rL "$src/." "$work/"
 
 # The template's own copy wins, so a template can replace a shared file without
-# changing it for every other one.
+# changing it for every other one. A directory is merged file by file rather
+# than taken whole: a template that ships its own .devcontainer/Dockerfile -
+# which is how a template that needs a system library is written - would
+# otherwise be published with no devcontainer.json beside it, and arrive
+# without the environment this script exists to hand over.
 add_shared() {
     local from=$1 to=$2
+    if [ -d "$from" ]; then
+        local entry
+        while IFS= read -r entry; do
+            add_shared "$from/$entry" "$to/$entry"
+        done < <(find "$from" -mindepth 1 ! -type d -printf '%P\n' | sort)
+        return 0
+    fi
     [ -e "$work/$to" ] && return 0
     mkdir -p "$(dirname "$work/$to")"
-    cp -rL "$from" "$work/$to"
+    cp -L "$from" "$work/$to"
 }
 
 for f in "${shared[@]}"; do
