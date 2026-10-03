@@ -1,9 +1,10 @@
 # Guards against pins quietly going stale.
 #
 # Dependabot reads workflow actions and Dockerfile base images. It does not read
-# CMake's FetchContent tags, nor apt versions pinned inside a RUN layer, so
-# those would sit at whatever version they were written at until somebody
-# noticed by hand. This job notices instead, and opens an issue.
+# CMake's FetchContent tags, nor apt versions pinned inside a RUN layer, nor the
+# archive signing keys the image carries, so those would sit at whatever they
+# were written at until somebody noticed by hand. This job notices instead, and
+# opens an issue.
 name: dependency freshness
 
 on:
@@ -88,6 +89,23 @@ jobs:
           codename=$(grep -oP 'ARG UBUNTU_CODENAME=\K.*' .devcontainer/Dockerfile)
           base=$(grep -oP '^FROM \K\S+' .devcontainer/Dockerfile)
 
+          # The signing keys travel with the image rather than being fetched by
+          # it, so a key replaced upstream stays invisible until apt refuses the
+          # archive it signs.
+          #
+          # Compared as a fingerprint and an expiry for the key and every subkey
+          # it carries, 0 standing for no expiry. Not by file, because the same
+          # key re-exported is not a new key; not by fingerprint alone, because
+          # an extended expiry and a new signing subkey are both things the copy
+          # here has to pick up, and neither changes one.
+          key_identity() {
+            gpg --show-keys --with-colons "$1" \
+              | awk -F: -v OFS=- '/^(pub|sub):/ { e = $7 } /^fpr:/ { print $10, e+0 }' \
+              | paste -sd,
+          }
+          kitware_key_pinned=$(key_identity .devcontainer/kitware-archive-keyring.asc)
+          llvm_key_pinned=$(key_identity .devcontainer/llvm-archive-keyring.asc)
+
           # The probe's failure is this job's failure. A fallback that answered
           # with the pinned version when the probe could not run would make
           # every apt pin compare equal to itself - three checks that could only
@@ -106,6 +124,10 @@ jobs:
 
             curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key \
               | gpg --dearmor -o /usr/share/keyrings/l.gpg
+
+            identity="/^(pub|sub):/ { e = \$7 } /^fpr:/ { print \$10, e+0 }"
+            echo "kitware_key=$(gpg --show-keys --with-colons /usr/share/keyrings/k.gpg | awk -F: -v OFS=- "$identity" | paste -sd,)"
+            echo "llvm_key=$(gpg --show-keys --with-colons /usr/share/keyrings/l.gpg | awk -F: -v OFS=- "$identity" | paste -sd,)"
 
             # apt.llvm.org carries one suite per major version and nothing for
             # the ones after it, and apt fails an entire update over a single
@@ -155,14 +177,17 @@ jobs:
             echo "gcc=$(apt-cache search --names-only "^g\+\+-[0-9]+$" | grep -oP "g\+\+-\K[0-9]+" | sort -n | tail -1)"
           ' > "$RUNNER_TEMP/current.txt"
 
-          # No fallback here either: a version the probe could not read is not a
-          # version that is current.
+          # No fallback here either: a value the probe could not read is not a
+          # value that is current.
           cmake_current=$(sed -n 's/^cmake=//p' "$RUNNER_TEMP/current.txt")
           clang_current=$(sed -n 's/^clang=//p' "$RUNNER_TEMP/current.txt")
           gcc_current=$(sed -n 's/^gcc=//p' "$RUNNER_TEMP/current.txt")
-          for answer in "$cmake_current" "$clang_current" "$gcc_current"; do
+          kitware_key_current=$(sed -n 's/^kitware_key=//p' "$RUNNER_TEMP/current.txt")
+          llvm_key_current=$(sed -n 's/^llvm_key=//p' "$RUNNER_TEMP/current.txt")
+          for answer in "$cmake_current" "$clang_current" "$gcc_current" \
+                        "$kitware_key_current" "$llvm_key_current"; do
             [ -n "$answer" ] || {
-              echo "::error::the probe did not report every version; see the step log"
+              echo "::error::the probe left one of its answers empty; see the step log"
               exit 1
             }
           done
@@ -170,6 +195,10 @@ jobs:
           [ "$cmake_pinned" = "$cmake_current" ] || note CMake "$cmake_pinned" "$cmake_current"
           [ "$clang_pinned" = "$clang_current" ] || note Clang "$clang_pinned" "$clang_current"
           [ "$gcc_pinned" = "$gcc_current" ] || note GCC "$gcc_pinned" "$gcc_current"
+          [ "$kitware_key_pinned" = "$kitware_key_current" ] \
+            || note "Kitware signing key" "$kitware_key_pinned" "$kitware_key_current"
+          [ "$llvm_key_pinned" = "$llvm_key_current" ] \
+            || note "LLVM signing key" "$llvm_key_pinned" "$llvm_key_current"
 
           {
             echo "stale<<STALE_EOF"
