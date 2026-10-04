@@ -22,29 +22,37 @@
 # around this code, and the directory they are defined in is the one the
 # sanitizer and clang-tidy exclusions up there are written against.
 #
-# One hole is left, because the preprocessor resolves a quoted include relative
-# to the file that writes it before it consults any include path at all:
-# "../presentation/presentation.hpp" would reach past everything above and still
-# link, since all of these end up in the same program.
-# scripts/check-module-includes.sh is what closes it.
+# One hole is left: an include can name a path rather than a name -
+# "../presentation/presentation.hpp" - and reach a header this include path
+# never offered, since all of these end up in the same program. Which paths are
+# refused, and why each one, is in scripts/check-module-includes.sh.
 
-add_library(myapp_catalogue STATIC catalogue/catalogue.cpp)
-target_include_directories(myapp_catalogue PUBLIC "${CMAKE_CURRENT_LIST_DIR}/catalogue")
-# Raise this to cxx_std_26 and the CI matrix will tell you what breaks. Every
-# module says it, because the standard a module is compiled with is part of what
-# it hands to whatever links it.
-target_compile_features(myapp_catalogue PUBLIC cxx_std_23)
-cppbp_set_warnings(myapp_catalogue PRIVATE)
-cppbp_set_sanitizers(myapp_catalogue PUBLIC)
-cppbp_enable_clang_tidy(myapp_catalogue)
+# What every module is, so that a module is a name and not six lines to keep in
+# step with the others. A module that leaves out cppbp_enable_clang_tidy would
+# be unchecked and nothing would say so; here it cannot.
+#
+# CMAKE_CURRENT_SOURCE_DIR rather than CMAKE_CURRENT_LIST_DIR: inside a function
+# the latter is the file being processed when the function is called.
+#
+# A module with a second source file adds it after the call with
+# target_sources.
+function(myapp_add_module name)
+    add_library(myapp_${name} STATIC ${name}/${name}.cpp)
+    target_include_directories(myapp_${name} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/${name}")
+    # Raise this to cxx_std_26 and the CI matrix will tell you what breaks. Every
+    # module says it, because the standard a module is compiled with is part of
+    # what it hands to whatever links it.
+    target_compile_features(myapp_${name} PUBLIC cxx_std_23)
+    cppbp_set_warnings(myapp_${name} PRIVATE)
+    cppbp_set_sanitizers(myapp_${name} PUBLIC)
+    cppbp_enable_clang_tidy(myapp_${name})
+endfunction()
 
-add_library(myapp_presentation STATIC presentation/presentation.cpp)
-target_include_directories(myapp_presentation PUBLIC "${CMAKE_CURRENT_LIST_DIR}/presentation")
-target_compile_features(myapp_presentation PUBLIC cxx_std_23)
+# What each module may use is below, and it is the whole of the graph.
+myapp_add_module(catalogue)
+
+myapp_add_module(presentation)
 target_link_libraries(myapp_presentation PUBLIC myapp_catalogue)
-cppbp_set_warnings(myapp_presentation PRIVATE)
-cppbp_set_sanitizers(myapp_presentation PUBLIC)
-cppbp_enable_clang_tidy(myapp_presentation)
 
 # The class QML binds to. Qt is PUBLIC because the header derives from
 # QAbstractListModel and carries Q_OBJECT; presentation is PRIVATE because the
@@ -52,31 +60,20 @@ cppbp_enable_clang_tidy(myapp_presentation)
 #
 # AUTOMOC for the two modules that link Qt, and only those: moc is what turns a
 # Q_OBJECT into something that links, and nothing in the other two can have one.
-add_library(myapp_filtered_entries STATIC filtered_entries/filtered_entries.cpp)
+myapp_add_module(filtered_entries)
 set_target_properties(myapp_filtered_entries PROPERTIES AUTOMOC ON)
-target_include_directories(myapp_filtered_entries
-    PUBLIC "${CMAKE_CURRENT_LIST_DIR}/filtered_entries")
-target_compile_features(myapp_filtered_entries PUBLIC cxx_std_23)
 target_link_libraries(myapp_filtered_entries
     PUBLIC myapp_catalogue Qt6::Quick
     PRIVATE myapp_presentation)
-cppbp_set_warnings(myapp_filtered_entries PRIVATE)
-cppbp_set_sanitizers(myapp_filtered_entries PUBLIC)
-cppbp_enable_clang_tidy(myapp_filtered_entries)
 
 # Builds what the program is made of and runs it, which is why Qt is PRIVATE
 # here: startup.hpp names an int and two arguments, so nothing that calls it
 # needs Qt to compile. It names no other module - the QML it loads reaches it as
 # a resource, from the module the executable links.
-add_library(myapp_startup STATIC startup/startup.cpp)
+myapp_add_module(startup)
 set_target_properties(myapp_startup PROPERTIES AUTOMOC ON)
 target_include_directories(myapp_startup
-    PUBLIC "${CMAKE_CURRENT_LIST_DIR}/startup"
     # <myapp/version.hpp>, which --version prints. PRIVATE, like Qt below: it is
     # read by the implementation and named in no header.
     PRIVATE "${MYAPP_GENERATED_DIR}")
-target_compile_features(myapp_startup PUBLIC cxx_std_23)
 target_link_libraries(myapp_startup PRIVATE Qt6::Quick)
-cppbp_set_warnings(myapp_startup PRIVATE)
-cppbp_set_sanitizers(myapp_startup PUBLIC)
-cppbp_enable_clang_tidy(myapp_startup)

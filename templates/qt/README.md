@@ -99,7 +99,7 @@ Everything is called `myapp`. Rename it:
 ./scripts/install-hooks.sh
 ```
 
-The first covers the namespace, the targets, the generated version header, the
+The first covers the namespace, every target, the generated version header, the
 QML module's URI and the `import` that names it, the window title, the homepage
 in `project()`, and the desktop entry - its file name as well as what is inside
 it. The homepage comes from the `origin` remote,
@@ -112,8 +112,10 @@ mistake is harder to notice than the template author's still being there, and
 0BSD asks for no attribution either way.
 
 The second points git at `.githooks/`, which runs clang-format, clang-tidy,
-actionlint, hadolint and shellcheck on the files in a commit; anything not installed is
-skipped rather than treated as a failure. The dev container runs it for you.
+actionlint, hadolint and shellcheck on the files in a commit - anything not
+installed is skipped rather than treated as a failure - and two checks that
+ship with the template, `check-module-includes` and `check-tidy-rationale`,
+which read the tree rather than the commit. The dev container runs it for you.
 
 Then replace what it shows. `catalogue` holds a list of the tools this template
 uses, which is an example of the shape rather than a feature.
@@ -159,10 +161,10 @@ So `src/CMakeLists.txt` is the dependency graph rather than a list of source
 files, and Qt is declared there the same way every module is - which is how the
 rule below is enforced rather than reviewed.
 
-A quoted include is resolved relative to the file that writes it before any
-include path is consulted, so `"../presentation/presentation.hpp"` reaches past
-all of this and still links. `scripts/check-module-includes.sh` is what refuses
-it, and it runs in the commit hook and in CI.
+An include can name a path rather than a name -
+`"../presentation/presentation.hpp"` - and reach a header this include path
+never offered, declaring nothing. Which paths are refused and why each one is in
+`scripts/check-module-includes.sh`, which runs in the commit hook and in CI.
 
 **The logic is not in the interface, and the build says so.**
 
@@ -209,9 +211,14 @@ nothing checks the other. QML does not care: it binds to the property, and the
 property is called `query` either way.
 
 To add a feature: `src/thing/thing.hpp` and `src/thing/thing.cpp`,
-`test/unit/thing_test.cpp`, then a target in `src/CMakeLists.txt` saying what
-`thing` may use - which is a question worth asking each time, because the answer
-is usually "nothing from Qt".
+`test/unit/thing_test.cpp`, then `myapp_add_module(thing)` in
+`src/CMakeLists.txt` with a `target_link_libraries` saying what `thing` may use
+- which is a question worth asking each time, because the answer is usually
+"nothing from Qt" - and `myapp_add_unit_test(thing)` in
+`test/unit/CMakeLists.txt`. If `main()` reaches it through `startup`, add it to
+that module's `target_link_libraries` as well - that line is what puts a module
+on another's include path. A module with a second source file adds it after the
+call with `target_sources`.
 
 ## Who owns the model
 

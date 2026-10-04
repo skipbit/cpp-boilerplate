@@ -1,4 +1,4 @@
-# The tests above load the interface in process. This one starts the program,
+# The tests in integration/ load the interface in process. This one starts the program,
 # which is the only way to check the part that is not a function: that main()
 # reaches startup, that the command line is answered, and that the window can be
 # put on a screen that is not there.

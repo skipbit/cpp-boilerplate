@@ -2,14 +2,14 @@
 #
 #   unit/         one module, called directly
 #   integration/  more than one module, wired together inside this process
-#   e2e/          the installed program, started as a process
+#   e2e/          the program, started as a process
 #
 # The split is not filing. A failing unit test names the module that is wrong; a
 # failing e2e test says only that the program is, and leaves the finding to a
 # person. Keeping them apart is what lets the first kind stay the common one.
 #
-# Both fetched here rather than in each subdirectory: FetchContent would do the
-# work once anyway, and a test level that could be configured without a test
+# Both included here rather than in each subdirectory: TestDependencies fetches
+# once either way, and a test level that could be configured without a test
 # framework is not one of the things worth allowing.
 include(TestDependencies)
 include(GoogleTest)
