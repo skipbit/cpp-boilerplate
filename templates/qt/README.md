@@ -121,9 +121,19 @@ uses, which is an example of the shape rather than a feature.
 ## How it is laid out
 
 ```
-src/               the C++: what the program knows, and the one class QML binds to
+CMakeLists.txt     the project, and the QML module and executable Qt builds
+src/
+  CMakeLists.txt   the modules, and what each one is allowed to use
+  main.cpp         the only file that is not in a module
+  catalogue/       one directory per module, named after it
+  presentation/
+  filtered_entries/
+  startup/
 qml/               the interface
-test/              one test file per layer, plus one that runs the program
+test/
+  unit/            one module, called directly
+  integration/     the interface, loaded in this process
+  e2e/             the program, started as a process
 desktop/           the desktop entry, with the name and path filled in by CMake
 cmake/             the generated version header's template
 docs/              why the configuration is what it is
@@ -136,39 +146,57 @@ docs/              why the configuration is what it is
 ceremony: everything that would otherwise be written in `main()` is then in a
 function, and a function can be called by a test while `main()` cannot.
 
-**The logic is not in the interface, and the build says so.** There are three
-layers and two libraries:
+**A module can only use what it declares.** Each directory under `src/` is a
+static library whose include path is its own directory plus the directories of
+the modules named in its `target_link_libraries`. Reaching for one that is not
+named there does not compile:
 
-| target | holds | links |
+```
+fatal error: 'presentation.hpp' file not found
+```
+
+So `src/CMakeLists.txt` is the dependency graph rather than a list of source
+files, and Qt is declared there the same way every module is - which is how the
+rule below is enforced rather than reviewed.
+
+A quoted include is resolved relative to the file that writes it before any
+include path is consulted, so `"../presentation/presentation.hpp"` reaches past
+all of this and still links. `scripts/check-module-includes.sh` is what refuses
+it, and it runs in the commit hook and in CI.
+
+**The logic is not in the interface, and the build says so.**
+
+| module | does | declares |
 | --- | --- | --- |
-| `myapp_core` | `catalogue`, `presentation` | nothing from Qt |
-| `myapp_bridge` | `filtered_entries`, `startup` | `myapp_core`, `Qt6::Quick` |
-| `myapp_ui` | `qml/Main.qml`, and what Qt generates from it | `myapp_bridge` |
+| `catalogue` | holds the entries, and answers which ones match | nothing |
+| `presentation` | turns a result into the strings that get shown | `catalogue`, publicly |
+| `filtered_entries` | offers both to QML as a property and a model | `catalogue` and Qt publicly, `presentation` privately |
+| `startup` | assembles the program and runs it | Qt, privately |
+| `qml/Main.qml` | says what the window looks like | `filtered_entries`, through the QML module |
 
-`myapp_core` is not linked against Qt, so a `QString` in it is a compile error
-rather than a review comment - it stops at `fatal error: QString: No such file
-or directory`. Its tests link that library and nothing else, construct no
-application object, and would keep passing if the whole interface were deleted.
+`catalogue` and `presentation` name nothing from Qt, so a `QString` in either
+one is a compile error rather than a review comment - it stops at `fatal error:
+QString: No such file or directory`. Their tests link one module each, construct
+no application object, and would keep passing if the whole interface were
+deleted.
 
-`myapp_ui` is separate from `myapp_bridge` for a duller reason that turned out
+`presentation` is declared privately by `filtered_entries`: the model asks it
+how to render a row and says so in no header, so nothing that links the model
+can reach it. That is the Qt line again, one level down.
+
+The QML module `myapp_ui` is a target of its own and is defined in the top-level
+`CMakeLists.txt` rather than under `src/`, for a duller reason that turned out
 to matter: a QML module target is also where Qt puts the code it generates, and
 a target holding only generated code can be exempted from the warnings and the
 static analysis as a whole. Mixing the two would mean choosing between judging
-Qt's output and not judging yours.
+Qt's output and not judging yours. That exemption is read per directory, which
+is also why the modules can sit under `src/` without being swept up by it.
 
 That enforces one direction of the rule: what the program knows cannot reach for
 the interface. The other direction - a view that quietly works out for itself
 what the model already answers - no arrangement can catch. What makes it easy to
 see instead is that neither `FilteredEntries` nor `Main.qml` has anywhere to put
 a decision: one forwards, the other binds.
-
-| layer | does | knows about |
-| --- | --- | --- |
-| `catalogue` | holds the entries, and answers which ones match | nothing |
-| `presentation` | turns a result into the strings that get shown | `catalogue` |
-| `filtered_entries` | offers both to QML as a property and a model | all of the above, and Qt |
-| `qml/Main.qml` | says what the window looks like | `filtered_entries` |
-| `startup` | assembles the program and runs it | Qt |
 
 `FilteredEntries` answers no questions of its own. The query goes to
 `catalogue`, the strings come from `presentation`, and what is left is turning
@@ -180,9 +208,10 @@ not `setQuery` - because `.clang-tidy` checks one of those conventions and
 nothing checks the other. QML does not care: it binds to the property, and the
 property is called `query` either way.
 
-To add a feature: `src/thing.hpp`, `src/thing.cpp`, `test/thing_test.cpp`, and
-add the source to whichever library it belongs to - which is a question worth
-asking each time, because the answer is usually `myapp_core`.
+To add a feature: `src/thing/thing.hpp` and `src/thing/thing.cpp`,
+`test/unit/thing_test.cpp`, then a target in `src/CMakeLists.txt` saying what
+`thing` may use - which is a question worth asking each time, because the answer
+is usually "nothing from Qt".
 
 ## Who owns the model
 
@@ -206,25 +235,28 @@ Qt says about ownership, because the answer stops being automatic.
 ctest --preset debug
 ```
 
-Four kinds of test, and the split is the design rather than an accident.
+Three levels and a lint, and the split is the design rather than an accident.
 
-- **`myapp_core_test`** links `myapp_core`. No Qt, no application object, no
-  display. Ordinary function calls.
-- **`myapp_bridge_test`** exercises `FilteredEntries` directly. It links Qt and
-  still needs no application object, which is the measurement that says the
-  class is a forwarder rather than a place where things happen.
-- **`myapp_interface_test`** loads `Main.qml` and drives it: it types into the
-  field and reads the labels, so what it checks is the bindings. It brings its
-  own `main()`, because the engine needs a `QGuiApplication` first, and it sets
-  `QT_QPA_PLATFORM=offscreen` before creating one - so it runs where there is no
-  display, and puts no windows on one where there is.
+- **`test/unit/`** - one module, called directly. `myapp_catalogue_test` and
+  `myapp_presentation_test` link one Qt-free module each: no Qt, no application
+  object, no display, ordinary function calls. `myapp_filtered_entries_test`
+  exercises `FilteredEntries` directly; it links Qt and still needs no
+  application object, which is the measurement that says the class is a
+  forwarder rather than a place where things happen.
+- **`test/integration/`** - more than one module, wired together inside this
+  process. `myapp_interface_test` loads `Main.qml` and drives it: it types into
+  the field and reads the labels, so what it checks is the bindings. It brings
+  its own `main()`, because the engine needs a `QGuiApplication` first, and it
+  sets `QT_QPA_PLATFORM=offscreen` before creating one - so it runs where there
+  is no display, and puts no windows on one where there is.
+- **`test/e2e/`** - the program, started as a process. `myapp.starts` runs the
+  built program with `--self-check`, which loads the interface, draws once and
+  quits. It is the only thing here that goes through `main()`.
 - **`myapp.qmllint`** is to QML what clang-tidy is to the C++, and nothing else
   here reads the `.qml` files at all: to the compiler they are bytes in a
   resource. It caught an unqualified property access in this file's first
-  version.
-- **`myapp.starts`** runs the built program with `--self-check`, which loads the
-  interface, draws once and quits. It is the only thing here that goes through
-  `main()`.
+  version. It sits in none of the three directories, because it is a lint
+  rather than a level: it starts nothing and calls nothing.
 
 `--self-check` exists for that test. A program that can only be checked by a
 person watching it is a program that stops being checked.
@@ -299,9 +331,9 @@ forever. The job named "what this project can be built with" lists every row in
 its summary, and which of them were built.
 
 A job named "what BUILD_SHARED_LIBS=ON builds and installs" runs on every pull
-request, and here it installs no shared library at all: `myapp_core`,
-`myapp_bridge` and `myapp_ui` all say `STATIC`, so the flag does not reach
-them, and the prefix gets the binary and the desktop entry. The Qt libraries
+request, and here it installs no shared library at all: every module and the
+QML module all say `STATIC`, so the flag does not reach them, and the prefix
+gets the binary and the desktop entry. The Qt libraries
 the program links are shared, and are the system's rather than this project's,
 so they are not in that count. The job prints the number either way, zero
 included, rather than letting a green tick stand for a count nobody has seen.
