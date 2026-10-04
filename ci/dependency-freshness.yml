@@ -266,22 +266,27 @@ jobs:
 
           # Quoted, and one match or none: an unquoted search is tokenised, so
           # it answers with whatever issue happens to contain these words, and
-          # what it answers with is edited or closed below.
-          # The title has to be asked for as well as the number, or the filter
-          # compares against a field that is not there and answers none. It goes
-          # in through the environment rather than being spliced into the filter
-          # as text, so a title is a title rather than part of the program.
+          # what it answers with is edited or closed below. The title goes in
+          # through the environment, so it stays a title rather than becoming
+          # part of the filter, and it is asked for alongside the number because
+          # the filter compares against it. Assigned and then read, so that a
+          # search which failed fails the step instead of arriving as a blank.
           #
-          # Asked once and read twice. Two searches are two answers that can
-          # disagree, and the second one decides which issue gets closed.
-          #
-          # Assigned before it is read, because `read` would take a search that
-          # failed as an empty line, and an empty line reads here as no issue
-          # open. The assignment is what carries a failure out.
-          found=$(TITLE="$title" gh issue list --state open \
+          # --limit, because the default is 30 and a title search is a phrase
+          # search: the issue with this exact title can sit past the first page.
+          found=$(TITLE="$title" gh issue list --state open --limit 100 \
             --search "\"$title\" in:title" --json number,title \
             --jq '[.[] | select(.title == env.TITLE)] | "\(length) \(.[0].number // "")"')
           read -r matches existing <<< "$found"
+
+          # An empty count is a false condition rather than an error to `[ -gt ]`,
+          # and what follows would open a second issue over the one already open.
+          case "$matches" in
+            '' | *[!0-9]*)
+              echo "::error::the search answered with no count; see the step log"
+              exit 1
+              ;;
+          esac
           if [ "$matches" -gt 1 ]; then
             echo "::error::${matches} open issues have this title; not touching any of them"
             exit 1
