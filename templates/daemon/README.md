@@ -103,8 +103,19 @@ of the shape rather than a feature.
 ## How it is laid out
 
 ```
-src/               everything, because nothing here is installed as a header
-test/              one test file per source file, plus one that signals the program
+CMakeLists.txt     what the project is called, what it installs, nothing else
+src/
+  CMakeLists.txt   the modules, and what each one is allowed to use
+  main.cpp         the only file that is not in a module
+  options/         one directory per module, named after it
+  service/
+  shutdown/
+  task/
+  unique_fd/
+test/
+  unit/            one module, called directly
+  integration/     more than one module, wired together in this process
+  e2e/             the program, started as a process and sent signals
 systemd/           the unit, with the name and the path filled in by CMake
 cmake/             the generated version header's template
 docs/              why the configuration is what it is
@@ -116,36 +127,70 @@ There is no `include/`. A service publishes a command and a unit file, not an
 API: no other project compiles against these headers, so none of them is
 installed and changing one breaks nobody.
 
+**A module can only use what it declares.** Each directory under `src/` is a
+static library whose include path is its own directory plus the directories of
+the modules named in its `target_link_libraries`. Reaching for one that is not
+named there does not compile:
+
+```
+fatal error: 'task.hpp' file not found
+```
+
+So `src/CMakeLists.txt` is not a list of source files, it is the dependency
+graph, and it is the only place that graph exists. One library over the whole of
+`src/` cannot say this: every header is on every file's include path, and what
+depends on what becomes whatever the code happens to do.
+
+A quoted include is resolved relative to the file that writes it before any
+include path is consulted, so `"../task/task.hpp"` reaches past all of this and
+still links. `scripts/check-module-includes.sh` is what refuses it, and it runs
+in the commit hook and in CI.
+
 **`main()` decides nothing.** It reads the command line, connects the loop to
 the signals and to the log, and turns what comes back into an exit status.
-Everything it calls lives in `mydaemon_lib`, a static library that is built but
-never installed - because a function in a library can be tested, and a loop in
-`main()` can only be checked by starting a process and sending it signals.
+Everything it calls is in a module, because a function in a library can be
+called by a test and a loop in `main()` can only be checked by starting a
+process and sending it signals. `main.cpp` is the one file no test links, and
+the only place the three top modules meet.
 
-**One thing per file, and the last column is the design.**
+**One thing per module, and the last column is the design.**
 
-| unit | does | knows about |
+| module | does | declares |
 | --- | --- | --- |
-| `options` | turns `argv` and a configuration file into `Options` | CLI11, and nothing else does |
-| `shutdown` | turns signals into an answer the loop can read | the OS, and nothing else does |
-| `unique_fd` | closes a file descriptor exactly once | `close()` |
-| `service` | works, waits, works again, until asked to stop | `options` and `task` |
+| `options` | turns `argv` and a configuration file into `Options` | CLI11, privately - nothing else sees it |
+| `shutdown` | turns signals into an answer the loop can read | `service` and `unique_fd`, publicly |
+| `unique_fd` | closes a file descriptor exactly once | nothing |
+| `service` | works, waits, works again, until asked to stop | `options` publicly, `task` privately |
 | `task` | one run of the work | nothing |
 
-`service` does not know that `shutdown` exists. `service.hpp` declares what the
-loop needs - a wait, a way to report a line, a way to re-read the configuration
-- and `shutdown` is written to fit that. The layer that knows about the OS
-depends on the one that does not, so no signal type reaches the loop and its
-tests drive it with lambdas: none of them starts a process, and none of them
-waits for an interval.
+`service` does not know that `shutdown` exists, and the build is what says so:
+`service` names it nowhere, so `shutdown.hpp` is not on its include path.
+`service.hpp` declares what the loop needs - a wait, a way to report a line, a
+way to re-read the configuration - and `shutdown` is written to fit that. The
+layer that knows about the OS depends on the one that does not, so no signal
+type reaches the loop and its tests drive it with lambdas: none of them starts a
+process, and none of them waits for an interval.
 
 `task` is the layer with nothing underneath it at all, which makes it the one
 worth keeping pure as it grows. It is handed the state of the previous run and
 returns the next one, so a test can run a hundred of them in no time.
 
-To add a feature: `src/thing.hpp`, `src/thing.cpp`, `test/thing_test.cpp`, and
-add the source to `add_library(mydaemon_lib ...)` and the test to
-`add_executable(mydaemon_test ...)`.
+**One test executable per module**, so that the link line is part of the check:
+`mydaemon_task_test` links `task` and nothing else, and the day `task` starts
+needing a piece of another module, it stops linking. A single test program over
+the whole tree has every module on its link line already, so an undeclared
+dependency resolves and the test passes.
+
+`test/integration/` is empty, and that is a fact about this program rather than
+an omission: every pair of modules here is either part of one module's interface
+- `shutdown::Watcher::wait` returns a `service::Wakeup` - or hidden inside an
+implementation, and all three are assembled only in `main()`, which cannot be
+linked into a test. `test/e2e/` is what checks that wiring. The directory ships
+anyway, because a level invented under pressure is a level that gets skipped.
+
+To add a feature: `src/thing/thing.hpp` and `src/thing/thing.cpp`,
+`test/unit/thing_test.cpp`, then a target in `src/CMakeLists.txt` saying what
+`thing` may use and one in `test/unit/CMakeLists.txt` linking it.
 
 ## Signals
 
@@ -175,10 +220,10 @@ That descriptor is also where this grows. A service that later needs a socket, a
 timer or an `inotify` watch adds a second entry to the same `poll` - which is
 what a daemon's event loop is, and why it is worth starting from one.
 
-`test/run-daemon.sh` is what says that is true rather than intended: it starts
-the built program, signals it, and checks the exit status and every line that
-came out - and then kills a second copy with `SIGKILL` to show the two are told
-apart. A check that cannot tell a clean stop from a killed process is not
+`test/e2e/run-daemon.sh` is what says that is true rather than intended: it
+starts the built program, signals it, and checks the exit status and every line
+that came out - and then kills a second copy with `SIGKILL` to show the two are
+told apart. A check that cannot tell a clean stop from a killed process is not
 checking the clean stop.
 
 ## Under systemd
@@ -265,8 +310,8 @@ The job named "what this project can be built with" lists every row in its
 summary, and which of them were built.
 
 A job named "what BUILD_SHARED_LIBS=ON builds and installs" runs on every pull
-request, and here it installs no shared library at all: `mydaemon_lib` says
-`STATIC`, so the flag does not reach it, and the prefix gets the binary and
+request, and here it installs no shared library at all: every module says
+`STATIC`, so the flag does not reach them, and the prefix gets the binary and
 the unit. It prints the number of libraries it read, zero included, rather
 than letting a green tick stand for a count nobody has seen. What it checks
 here is that the flag changes nothing: configure, build, test and install

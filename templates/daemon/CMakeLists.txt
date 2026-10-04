@@ -43,42 +43,13 @@ set(MYDAEMON_SYSTEMD_UNIT_DIR "lib/systemd/system"
 set(MYDAEMON_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
 configure_file(cmake/version.hpp.in "${MYDAEMON_GENERATED_DIR}/mydaemon/version.hpp" @ONLY)
 
-# Two targets, and the split is the point. Everything the program does is in a
-# library the tests can link; the executable is main.cpp and nothing else. A
-# service written the other way round can only be checked by starting it and
-# sending it signals, which is why so few of them are checked at all.
+# What this file decides: what the project is called, what it can be configured
+# with, and what it installs. No target is defined here.
 #
-# The library is static and is never installed: it is an arrangement for testing
-# this program, not an API for anyone else.
-add_library(mydaemon_lib STATIC
-    src/options.cpp
-    src/service.cpp
-    src/shutdown.cpp
-    src/task.cpp
-    src/unique_fd.cpp)
-
-target_include_directories(mydaemon_lib PUBLIC
-    "${CMAKE_CURRENT_LIST_DIR}/src"
-    "${MYDAEMON_GENERATED_DIR}")
-
-# Raise this to cxx_std_26 and the CI matrix will tell you what breaks.
-target_compile_features(mydaemon_lib PUBLIC cxx_std_23)
-
-# Threads for pthread_sigmask, which is the one signal call whose behaviour is
-# defined once a process has more than one thread. CLI11 is named in one .cpp
-# file and in no header, so swapping the parser is a change to that file and to
-# cmake/modules/CommandLineDependencies.cmake.
-target_link_libraries(mydaemon_lib PRIVATE CLI11::CLI11 Threads::Threads)
-
-cppbp_set_warnings(mydaemon_lib PRIVATE)
-cppbp_set_sanitizers(mydaemon_lib PUBLIC)
-cppbp_enable_clang_tidy(mydaemon_lib)
-
-add_executable(mydaemon src/main.cpp)
-target_link_libraries(mydaemon PRIVATE mydaemon_lib)
-cppbp_set_warnings(mydaemon PRIVATE)
-cppbp_set_sanitizers(mydaemon PRIVATE)
-cppbp_enable_clang_tidy(mydaemon)
+# src/CMakeLists.txt defines them, and that is where the program's own
+# dependencies can be read in one place instead of inferred from a list of
+# source files.
+add_subdirectory(src)
 
 # The unit names the program and the absolute path it was installed to, so it is
 # generated rather than shipped. That path is fixed at configure time: installing

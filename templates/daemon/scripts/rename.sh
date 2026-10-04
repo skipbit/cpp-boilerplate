@@ -194,7 +194,7 @@ echo "    'Make it yours' is the instructions you have just finished following"
 if [ -z "$homepage" ]; then
     echo "  - put HOMEPAGE_URL back in project() once this has a home to point at"
 fi
-echo "  - replace what the service does: src/task.cpp is an example, not a feature"
+echo "  - replace what the service does: src/task/ is an example, not a feature"
 echo "  - read systemd/${new}.service.in and decide what it is allowed to touch"
 echo "  - delete this script"
 echo "  - cmake --preset debug && cmake --build --preset debug && ctest --preset debug"
