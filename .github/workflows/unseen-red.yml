@@ -153,16 +153,23 @@ jobs:
           # editing whichever issue came first would overwrite what somebody
           # else wrote.
           # The title has to be asked for as well as the number, or the filter
-          # below compares against a field that is not there and answers none.
-          matches=$(gh issue list --state open --search "\"$title\" in:title" \
-            --json number,title --jq '[.[] | select(.title == "'"$title"'")] | length')
-          existing=""
+          # compares against a field that is not there and answers none. It goes
+          # in through the environment rather than being spliced into the filter
+          # as text, so a title is a title rather than part of the program.
+          #
+          # Asked once and read twice. Two searches are two answers that can
+          # disagree, and the second one decides which issue gets edited.
+          #
+          # Assigned before it is read, because `read` would take a search that
+          # failed as an empty line, and an empty line reads here as no issue
+          # open. The assignment is what carries a failure out.
+          found=$(TITLE="$title" gh issue list --state open \
+            --search "\"$title\" in:title" --json number,title \
+            --jq '[.[] | select(.title == env.TITLE)] | "\(length) \(.[0].number // "")"')
+          read -r matches existing <<< "$found"
           if [ "$matches" -gt 1 ]; then
             echo "::error::${matches} open issues have this title; not editing any of them"
             exit 1
-          elif [ "$matches" -eq 1 ]; then
-            existing=$(gh issue list --state open --search "\"$title\" in:title" \
-              --json number,title --jq '[.[] | select(.title == "'"$title"'")][0].number')
           fi
 
           was_clear=true

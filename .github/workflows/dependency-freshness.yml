@@ -9,7 +9,8 @@ name: dependency freshness
 
 on:
   schedule:
-    - cron: "0 20 * * 1" # Monday 20:00 UTC, Tuesday 05:00 JST
+    # Monday 20:00 UTC, Tuesday 05:00 JST
+    - cron: "0 20 * * 1"
   workflow_dispatch:
 
 permissions:
@@ -263,16 +264,23 @@ jobs:
           # it answers with whatever issue happens to contain these words, and
           # what it answers with is edited or closed below.
           # The title has to be asked for as well as the number, or the filter
-          # compares against a field that is not there and answers none.
-          matches=$(gh issue list --state open --search "\"$title\" in:title" \
-            --json number,title --jq '[.[] | select(.title == "'"$title"'")] | length')
-          existing=""
+          # compares against a field that is not there and answers none. It goes
+          # in through the environment rather than being spliced into the filter
+          # as text, so a title is a title rather than part of the program.
+          #
+          # Asked once and read twice. Two searches are two answers that can
+          # disagree, and the second one decides which issue gets closed.
+          #
+          # Assigned before it is read, because `read` would take a search that
+          # failed as an empty line, and an empty line reads here as no issue
+          # open. The assignment is what carries a failure out.
+          found=$(TITLE="$title" gh issue list --state open \
+            --search "\"$title\" in:title" --json number,title \
+            --jq '[.[] | select(.title == env.TITLE)] | "\(length) \(.[0].number // "")"')
+          read -r matches existing <<< "$found"
           if [ "$matches" -gt 1 ]; then
             echo "::error::${matches} open issues have this title; not touching any of them"
             exit 1
-          elif [ "$matches" -eq 1 ]; then
-            existing=$(gh issue list --state open --search "\"$title\" in:title" \
-              --json number,title --jq '[.[] | select(.title == "'"$title"'")][0].number')
           fi
 
           # Pins that caught up close the issue, so an open one means something
@@ -288,7 +296,7 @@ jobs:
           fi
 
           # \n\n: the list ends without a newline of its own.
-          body=$(printf 'These pins are behind what is currently published.\n\n%s\n\nThis issue is updated by the dependency-freshness workflow, and closes when the pins catch up; it is not a to-do list with a deadline.\n' "$STALE")
+          body=$(printf 'These pins are behind what is currently published.\n\n%s\n\nThis issue is updated by the dependency-freshness workflow, which watches the pins written into this project and not the ones a dependency bot reads, and closes when they catch up. It is not a to-do list with a deadline, and being behind is not the same as being broken.\n' "$STALE")
 
           if [ -n "$existing" ]; then
             gh issue edit "$existing" --body "$body"
