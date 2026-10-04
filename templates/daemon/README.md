@@ -82,7 +82,7 @@ Everything is called `mydaemon`. Rename it:
 ./scripts/install-hooks.sh
 ```
 
-The first covers the namespace, both targets, the generated version header, the
+The first covers the namespace, every target, the generated version header, the
 name the program prints in its own messages, the homepage in `project()`, and
 the systemd unit - its file name as well as what is inside it. The homepage
 comes from the `origin` remote, or from `--url`; with neither, the line is
@@ -94,8 +94,10 @@ mistake is harder to notice than the template author's still being there, and
 0BSD asks for no attribution either way.
 
 The second points git at `.githooks/`, which runs clang-format, clang-tidy,
-actionlint, hadolint and shellcheck on the files in a commit; anything not installed is
-skipped rather than treated as a failure. The dev container runs it for you.
+actionlint, hadolint and shellcheck on the files in a commit - anything not
+installed is skipped rather than treated as a failure - and two checks that
+ship with the template, `check-module-includes` and `check-tidy-rationale`,
+which read the tree rather than the commit. The dev container runs it for you.
 
 Then replace what it does. `task.cpp` counts its own runs, which is an example
 of the shape rather than a feature.
@@ -141,10 +143,10 @@ graph, and it is the only place that graph exists. One library over the whole of
 `src/` cannot say this: every header is on every file's include path, and what
 depends on what becomes whatever the code happens to do.
 
-A quoted include is resolved relative to the file that writes it before any
-include path is consulted, so `"../task/task.hpp"` reaches past all of this and
-still links. `scripts/check-module-includes.sh` is what refuses it, and it runs
-in the commit hook and in CI.
+An include can name a path rather than a name - `"../task/task.hpp"` - and
+reach a header this include path never offered, declaring nothing. Which paths
+are refused and why each one is in `scripts/check-module-includes.sh`, which
+runs in the commit hook and in CI.
 
 **`main()` decides nothing.** It reads the command line, connects the loop to
 the signals and to the log, and turns what comes back into an exit status.
@@ -177,7 +179,7 @@ returns the next one, so a test can run a hundred of them in no time.
 
 **One test executable per module**, so that the link line is part of the check:
 `mydaemon_task_test` links `task` and nothing else, and the day `task` starts
-needing a piece of another module, it stops linking. A single test program over
+calling a function of another module, it stops linking. A single test program over
 the whole tree has every module on its link line already, so an undeclared
 dependency resolves and the test passes.
 
@@ -189,8 +191,12 @@ linked into a test. `test/e2e/` is what checks that wiring. The directory ships
 anyway, because a level invented under pressure is a level that gets skipped.
 
 To add a feature: `src/thing/thing.hpp` and `src/thing/thing.cpp`,
-`test/unit/thing_test.cpp`, then a target in `src/CMakeLists.txt` saying what
-`thing` may use and one in `test/unit/CMakeLists.txt` linking it.
+`test/unit/thing_test.cpp`, then `mydaemon_add_module(thing)` in
+`src/CMakeLists.txt` with a `target_link_libraries` saying what `thing` may use,
+and `mydaemon_add_unit_test(thing)` in `test/unit/CMakeLists.txt`. If `main()`
+calls it, add it to the executable's `target_link_libraries` as well - that line
+is what puts a module on `main.cpp`'s include path. A module with a second
+source file adds it after the call with `target_sources`.
 
 ## Signals
 
@@ -350,7 +356,7 @@ git push origin v0.2.0        # this push is the release
 ## Standard
 
 C++23, set per target with `target_compile_features`. Change one line in
-`CMakeLists.txt` to move it.
+`src/CMakeLists.txt` to move it.
 
 A standard is not one thing, and not one thing per compiler either: it is a
 compiler and a standard library, and the two disagree. On Ubuntu 24.04, GCC 13

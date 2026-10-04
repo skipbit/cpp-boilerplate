@@ -18,54 +18,50 @@
 # whoever links service; task is called by the loop and named in no header, so
 # it is PRIVATE and stops here.
 #
-# One hole is left, because the preprocessor resolves a quoted include relative
-# to the file that writes it before it consults any include path at all:
-# "../task/task.hpp" would reach past everything above and still link, since all
-# of these end up in the same program. scripts/check-module-includes.sh is what
-# closes it.
+# One hole is left: an include can name a path rather than a name -
+# "../task/task.hpp" - and reach a header this include path never offered,
+# since all of these end up in the same program. Which paths are refused, and
+# why each one, is in scripts/check-module-includes.sh.
 
-add_library(mydaemon_options STATIC options/options.cpp)
+# What every module is, so that a module is a name and not six lines to keep in
+# step with the others. A module that leaves out cppbp_enable_clang_tidy would
+# be unchecked and nothing would say so; here it cannot.
+#
+# CMAKE_CURRENT_SOURCE_DIR rather than CMAKE_CURRENT_LIST_DIR: inside a function
+# the latter is the file being processed when the function is called.
+#
+# A module with a second source file adds it after the call with
+# target_sources.
+function(mydaemon_add_module name)
+    add_library(mydaemon_${name} STATIC ${name}/${name}.cpp)
+    target_include_directories(mydaemon_${name} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/${name}")
+    # Raise this to cxx_std_26 and the CI matrix will tell you what breaks. Every
+    # module says it, because the standard a module is compiled with is part of
+    # what it hands to whatever links it.
+    target_compile_features(mydaemon_${name} PUBLIC cxx_std_23)
+    cppbp_set_warnings(mydaemon_${name} PRIVATE)
+    cppbp_set_sanitizers(mydaemon_${name} PUBLIC)
+    cppbp_enable_clang_tidy(mydaemon_${name})
+endfunction()
+
+# What each module may use is below, and it is the whole of the graph.
+mydaemon_add_module(options)
 target_include_directories(mydaemon_options
-    PUBLIC "${CMAKE_CURRENT_LIST_DIR}/options"
     # <mydaemon/version.hpp>, which --version prints. PRIVATE, like CLI11 below:
     # it is read by the implementation and named in no header.
     PRIVATE "${MYDAEMON_GENERATED_DIR}")
-# Raise this to cxx_std_26 and the CI matrix will tell you what breaks. Every
-# module says it, because the standard a module is compiled with is part of what
-# it hands to whatever links it.
-target_compile_features(mydaemon_options PUBLIC cxx_std_23)
 # Swapping the argument parser is a change to options.cpp and to
 # cmake/modules/CommandLineDependencies.cmake. Nothing else names CLI11.
 target_link_libraries(mydaemon_options PRIVATE CLI11::CLI11)
-cppbp_set_warnings(mydaemon_options PRIVATE)
-cppbp_set_sanitizers(mydaemon_options PUBLIC)
-cppbp_enable_clang_tidy(mydaemon_options)
 
-add_library(mydaemon_task STATIC task/task.cpp)
-target_include_directories(mydaemon_task PUBLIC "${CMAKE_CURRENT_LIST_DIR}/task")
-target_compile_features(mydaemon_task PUBLIC cxx_std_23)
-cppbp_set_warnings(mydaemon_task PRIVATE)
-cppbp_set_sanitizers(mydaemon_task PUBLIC)
-cppbp_enable_clang_tidy(mydaemon_task)
+mydaemon_add_module(task)
 
-add_library(mydaemon_unique_fd STATIC unique_fd/unique_fd.cpp)
-target_include_directories(mydaemon_unique_fd PUBLIC "${CMAKE_CURRENT_LIST_DIR}/unique_fd")
-target_compile_features(mydaemon_unique_fd PUBLIC cxx_std_23)
-cppbp_set_warnings(mydaemon_unique_fd PRIVATE)
-cppbp_set_sanitizers(mydaemon_unique_fd PUBLIC)
-cppbp_enable_clang_tidy(mydaemon_unique_fd)
+mydaemon_add_module(unique_fd)
 
-add_library(mydaemon_service STATIC service/service.cpp)
-target_include_directories(mydaemon_service PUBLIC "${CMAKE_CURRENT_LIST_DIR}/service")
-target_compile_features(mydaemon_service PUBLIC cxx_std_23)
+mydaemon_add_module(service)
 target_link_libraries(mydaemon_service PUBLIC mydaemon_options PRIVATE mydaemon_task)
-cppbp_set_warnings(mydaemon_service PRIVATE)
-cppbp_set_sanitizers(mydaemon_service PUBLIC)
-cppbp_enable_clang_tidy(mydaemon_service)
 
-add_library(mydaemon_shutdown STATIC shutdown/shutdown.cpp)
-target_include_directories(mydaemon_shutdown PUBLIC "${CMAKE_CURRENT_LIST_DIR}/shutdown")
-target_compile_features(mydaemon_shutdown PUBLIC cxx_std_23)
+mydaemon_add_module(shutdown)
 # Both PUBLIC, and for the two reasons a header can need a module: Watcher::wait
 # returns service::Wakeup, and UniqueFd is a data member, which a header needs
 # complete even though it is private.
@@ -76,9 +72,6 @@ target_compile_features(mydaemon_shutdown PUBLIC cxx_std_23)
 target_link_libraries(mydaemon_shutdown
     PUBLIC mydaemon_service mydaemon_unique_fd
     PRIVATE Threads::Threads)
-cppbp_set_warnings(mydaemon_shutdown PRIVATE)
-cppbp_set_sanitizers(mydaemon_shutdown PUBLIC)
-cppbp_enable_clang_tidy(mydaemon_shutdown)
 
 # main.cpp is the only file here that is not in a module, and the only one no
 # test links: a function in a library can be called by a test, and a loop in

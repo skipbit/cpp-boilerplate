@@ -6,7 +6,7 @@
 #   ./scripts/rename.sh yourservice --url https://github.com/you/yourservice
 #   ./scripts/rename.sh yourservice --author "Your Name"
 #
-# Covers the namespace, the two targets, the generated version header, the name
+# Covers the namespace, every target, the generated version header, the name
 # the program calls itself in its own messages, and the systemd unit - both the
 # name of its template file and what is written inside it. The uppercase form
 # (CMake options) follows automatically.

@@ -1,4 +1,4 @@
-# The tests above drive the loop with lambdas. This one starts the real process
+# The tests in unit/ drive the loop with lambdas. This one starts the real process
 # and sends it the signals a service manager sends, which is the only way to
 # check the part that is not a function: that the signals are blocked before
 # they can kill it, that a stop is taken between two runs, and that the exit
