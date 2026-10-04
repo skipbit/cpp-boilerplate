@@ -46,11 +46,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 # on the shell rather than per step.
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# The two archive signing keys travel with this file rather than being fetched: a
-# key is a constant, and downloading a constant puts somebody else's web server
-# between a build and whether it works. apt reads an armored key when the name
-# ends in .asc, so nothing dearmors them and the image needs no gnupg. The
-# dependency-freshness job watches for the day one of them is rotated.
+# The two archive signing keys travel with this file rather than being fetched,
+# and apt reads an armored key when the name ends in .asc, so nothing dearmors
+# them. Why, their fingerprints, and what a rotation does: docs/toolchain.md.
 COPY kitware-archive-keyring.asc llvm-archive-keyring.asc /etc/apt/keyrings/
 
 RUN apt-get update \

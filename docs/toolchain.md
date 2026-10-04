@@ -9,7 +9,7 @@ deliberately not, and why the linter that reads it has one rule switched off.
 
 ## What is pinned, and how
 
-Three different kinds of pin, because the things being pinned are not alike.
+Four different kinds of pin, because the things being pinned are not alike.
 
 | what | how it is pinned | where |
 | --- | --- | --- |
@@ -81,6 +81,17 @@ Dockerfile and are copied in:
 COPY kitware-archive-keyring.asc llvm-archive-keyring.asc /etc/apt/keyrings/
 ```
 
+Which keys those are is written down here, because an armored key is not
+something a reviewer can check by reading:
+
+| archive | fingerprint | published at |
+| --- | --- | --- |
+| Kitware | `4DBEBE3EEC96E7B8C6EC5BE99E92FDC6C5B9BA75` | `apt.kitware.com/keys/kitware-archive-latest.asc` |
+| LLVM | `6084F3CF814B57C1CF12EFD515CF4D18AF4F7421` | `apt.llvm.org/llvm-snapshot.gpg.key` |
+
+A change to either file is reviewed against that table. A keyblock that is
+neither of these is a key apt would trust and nobody chose.
+
 A key is a constant, and fetching a constant puts somebody else's web server
 between a build and whether it works - a failure with nothing in it for anyone
 to act on. apt reads an armored key when the file name ends in `.asc`, so
@@ -94,10 +105,12 @@ E: The repository 'https://apt.kitware.com/ubuntu noble InRelease' is not signed
 ```
 
 A refused archive is a failed build rather than a package installed unverified,
-so the day it happens is loud. `dependency-freshness.yml` compares both copies
-against what the archives publish - every fingerprint and expiry in them - so a
-replaced key, a new signing subkey and an extended expiry each arrive as a line
-in the weekly issue instead of only as a red build.
+so the day it happens is loud. `dependency-freshness.yml` is what speaks before
+then: it compares both copies against what the archives publish - every
+fingerprint and expiry in them - so a replaced key, a new signing subkey and an
+extended expiry each arrive as a line in the weekly issue. It reports a key that
+is simply running out as well, 90 days ahead, because a key nobody replaces
+still stops working on the day it expires.
 
 ## The linter, and the one rule it is not allowed to make
 

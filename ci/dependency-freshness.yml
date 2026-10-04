@@ -48,6 +48,11 @@ jobs:
             stale="${stale}- **$1**: pinned \`$2\`, current \`$3\`"$'\n'
           }
 
+          # For what is not a pinned-against-current comparison.
+          warn() {
+            stale="${stale}- **$1**: $2"$'\n'
+          }
+
           # --- GoogleTest: fetched by tag, invisible to Dependabot ---
           gtest_pinned=$(grep -oP 'CPPBP_GOOGLETEST_TAG "\K[^"]+' cmake/modules/TestDependencies.cmake)
           gtest_current=$(gh api repos/google/googletest/releases \
@@ -93,30 +98,14 @@ jobs:
           codename=$(grep -oP 'ARG UBUNTU_CODENAME=\K.*' .devcontainer/Dockerfile)
           base=$(grep -oP '^FROM \K\S+' .devcontainer/Dockerfile)
 
-          # The signing keys travel with the image rather than being fetched by
-          # it, so a key replaced upstream stays invisible until apt refuses the
-          # archive it signs.
-          #
-          # Compared as a fingerprint and an expiry for the key and every subkey
-          # it carries, 0 standing for no expiry. Not by file, because the same
-          # key re-exported is not a new key; not by fingerprint alone, because
-          # an extended expiry and a new signing subkey are both things the copy
-          # here has to pick up, and neither changes one.
-          key_identity() {
-            gpg --show-keys --with-colons "$1" \
-              | awk -F: -v OFS=- '/^(pub|sub):/ { e = $7 } /^fpr:/ { print $10, e+0 }' \
-              | paste -sd,
-          }
-          kitware_key_pinned=$(key_identity .devcontainer/kitware-archive-keyring.asc)
-          llvm_key_pinned=$(key_identity .devcontainer/llvm-archive-keyring.asc)
-
           # The probe's failure is this job's failure. A fallback that answered
           # with the pinned version when the probe could not run would make
           # every apt pin compare equal to itself - three checks that could only
           # ever report "current", in the job that exists to notice when they
           # are not.
           docker run --rm -e DEBIAN_FRONTEND=noninteractive \
-            -e CLANG_PINNED="$clang_pinned" -e CODENAME="$codename" "$base" \
+            -e CLANG_PINNED="$clang_pinned" -e CODENAME="$codename" \
+            -v "$PWD/.devcontainer:/pinned:ro" "$base" \
             bash -euo pipefail -c '
             apt-get update -qq > /dev/null
             apt-get install -y -qq curl gpg ca-certificates > /dev/null
@@ -129,9 +118,18 @@ jobs:
             curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key \
               | gpg --dearmor -o /usr/share/keyrings/l.gpg
 
-            identity="/^(pub|sub):/ { e = \$7 } /^fpr:/ { print \$10, e+0 }"
-            echo "kitware_key=$(gpg --show-keys --with-colons /usr/share/keyrings/k.gpg | awk -F: -v OFS=- "$identity" | paste -sd,)"
-            echo "llvm_key=$(gpg --show-keys --with-colons /usr/share/keyrings/l.gpg | awk -F: -v OFS=- "$identity" | paste -sd,)"
+            # Both sides of the key comparison are measured here, by one gpg
+            # and one program, so that what is compared is two archives rather
+            # than two gpg builds. /pinned is the directory the image copies from.
+            key_identity() {
+              gpg --show-keys --with-colons "$1" \
+                | awk -F: -v OFS=- "/^(pub|sub):/ { e = \$7 } /^fpr:/ { print \$10, e+0 }" \
+                | paste -sd,
+            }
+            echo "kitware_key_pinned=$(key_identity /pinned/kitware-archive-keyring.asc)"
+            echo "kitware_key_current=$(key_identity /usr/share/keyrings/k.gpg)"
+            echo "llvm_key_pinned=$(key_identity /pinned/llvm-archive-keyring.asc)"
+            echo "llvm_key_current=$(key_identity /usr/share/keyrings/l.gpg)"
 
             # apt.llvm.org carries one suite per major version and nothing for
             # the ones after it, and apt fails an entire update over a single
@@ -186,10 +184,13 @@ jobs:
           cmake_current=$(sed -n 's/^cmake=//p' "$RUNNER_TEMP/current.txt")
           clang_current=$(sed -n 's/^clang=//p' "$RUNNER_TEMP/current.txt")
           gcc_current=$(sed -n 's/^gcc=//p' "$RUNNER_TEMP/current.txt")
-          kitware_key_current=$(sed -n 's/^kitware_key=//p' "$RUNNER_TEMP/current.txt")
-          llvm_key_current=$(sed -n 's/^llvm_key=//p' "$RUNNER_TEMP/current.txt")
+          kitware_key_pinned=$(sed -n 's/^kitware_key_pinned=//p' "$RUNNER_TEMP/current.txt")
+          kitware_key_current=$(sed -n 's/^kitware_key_current=//p' "$RUNNER_TEMP/current.txt")
+          llvm_key_pinned=$(sed -n 's/^llvm_key_pinned=//p' "$RUNNER_TEMP/current.txt")
+          llvm_key_current=$(sed -n 's/^llvm_key_current=//p' "$RUNNER_TEMP/current.txt")
           for answer in "$cmake_current" "$clang_current" "$gcc_current" \
-                        "$kitware_key_current" "$llvm_key_current"; do
+                        "$kitware_key_pinned" "$kitware_key_current" \
+                        "$llvm_key_pinned" "$llvm_key_current"; do
             [ -n "$answer" ] || {
               echo "::error::the probe left one of its answers empty; see the step log"
               exit 1
@@ -199,10 +200,39 @@ jobs:
           [ "$cmake_pinned" = "$cmake_current" ] || note CMake "$cmake_pinned" "$cmake_current"
           [ "$clang_pinned" = "$clang_current" ] || note Clang "$clang_pinned" "$clang_current"
           [ "$gcc_pinned" = "$gcc_current" ] || note GCC "$gcc_pinned" "$gcc_current"
+          # The keys travel with the image rather than being fetched by it, so
+          # one replaced upstream stays invisible until apt refuses the archive
+          # it signs. A fingerprint and an expiry for the key and every subkey,
+          # 0 standing for no expiry: the same key re-exported is not a new key,
+          # and an extended expiry and a new signing subkey are each something
+          # the copy here has to pick up without changing a fingerprint.
           [ "$kitware_key_pinned" = "$kitware_key_current" ] \
             || note "Kitware signing key" "$kitware_key_pinned" "$kitware_key_current"
           [ "$llvm_key_pinned" = "$llvm_key_current" ] \
             || note "LLVM signing key" "$llvm_key_pinned" "$llvm_key_current"
+
+          # A key nobody replaces still stops working on the day it expires, and
+          # until that day pinned and current agree every week. The expiries are
+          # already in the identities above, so this reads the soonest of them,
+          # and prints nothing for a key that carries none. 90 days ahead, which
+          # is a dozen weekly reminders.
+          #
+          # awk rather than grep for the nothing case: a key with no expiry at
+          # all is the ordinary state of one of these two, and a grep that
+          # matches nothing is a failed pipeline that would take the job with it.
+          soonest_expiry() {
+            printf '%s\n' "$1" | tr ',' '\n' \
+              | awk -F- '{ e = $NF + 0; if (e > 0 && (m == 0 || e < m)) m = e } END { if (m) print m }'
+          }
+          now=$(date +%s)
+          for key in "Kitware:$kitware_key_pinned" "LLVM:$llvm_key_pinned"; do
+            expiry=$(soonest_expiry "${key#*:}")
+            [ -n "$expiry" ] || continue
+            if [ "$expiry" -lt $((now + 90 * 86400)) ]; then
+              warn "${key%%:*} signing key" \
+                "expires $(date -u -d "@$expiry" +%F), and the copy in .devcontainer/ has to be replaced before then"
+            fi
+          done
 
           {
             echo "stale<<STALE_EOF"
