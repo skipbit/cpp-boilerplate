@@ -34,40 +34,13 @@ option(MYCLI_INSTALL "Generate the install rules" ${PROJECT_IS_TOP_LEVEL})
 set(MYCLI_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
 configure_file(cmake/version.hpp.in "${MYCLI_GENERATED_DIR}/mycli/version.hpp" @ONLY)
 
-# Two targets, and the split is the point. Everything the program does is in a
-# library the tests can link; the executable is main.cpp and nothing else. A
-# program written the other way round can only be tested by starting a process
-# and reading its output, which is why so few of them are.
+# What this file decides: what the project is called, what it can be configured
+# with, and what it installs. No target is defined here.
 #
-# The library is static and is never installed: it is an arrangement for testing
-# this program, not an API for anyone else. A library meant for other people to
-# link is a different template.
-add_library(mycli_lib STATIC
-    src/command_line.cpp
-    src/counting.cpp
-    src/report.cpp)
-
-target_include_directories(mycli_lib PUBLIC
-    "${CMAKE_CURRENT_LIST_DIR}/src"
-    "${MYCLI_GENERATED_DIR}")
-
-# Raise this to cxx_std_26 and the CI matrix will tell you what breaks.
-target_compile_features(mycli_lib PUBLIC cxx_std_23)
-
-# PRIVATE: CLI11 is used by one source file and named in no header, so nothing
-# that links this library has to know it exists. Swapping the parser is then a
-# change to command_line.cpp and to cmake/modules/CommandLineDependencies.cmake.
-target_link_libraries(mycli_lib PRIVATE CLI11::CLI11)
-
-cppbp_set_warnings(mycli_lib PRIVATE)
-cppbp_set_sanitizers(mycli_lib PUBLIC)
-cppbp_enable_clang_tidy(mycli_lib)
-
-add_executable(mycli src/main.cpp)
-target_link_libraries(mycli PRIVATE mycli_lib)
-cppbp_set_warnings(mycli PRIVATE)
-cppbp_set_sanitizers(mycli PRIVATE)
-cppbp_enable_clang_tidy(mycli)
+# src/CMakeLists.txt defines them, and that is where the program's own
+# dependencies can be read in one place instead of inferred from a list of
+# source files.
+add_subdirectory(src)
 
 if(MYCLI_BUILD_TESTING)
     enable_testing()
