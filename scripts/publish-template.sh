@@ -34,6 +34,7 @@ readonly shared=(
     .hadolint.yaml
     LICENSE
     docs
+    scripts/check-module-includes.sh
     scripts/check-tidy-rationale.sh
     scripts/install-hooks.sh
     scripts/lint-paths.sh

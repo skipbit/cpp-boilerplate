@@ -23,11 +23,16 @@ case "${1:-}" in
     shellcheck)   git ls-files -- '*.sh' '.githooks/*' ;;
     actionlint)   git ls-files -- '.github/workflows/*.yml' 'ci/*.yml' ;;
     hadolint)     git ls-files -- '*Dockerfile' ;;
+    # The same extensions as clang-format, asked for separately: these two
+    # answers are the same today and have no reason to stay that way, and a
+    # check that quietly follows another one's list is a check nobody can
+    # change.
+    module-includes) git ls-files -- '*.cpp' '*.hpp' '*.h' '*.cc' ;;
     # Not files a checker is run on, but the files that decide whether it needs
     # running: check-tidy-rationale.sh reads both of them whole.
     tidy-rationale) git ls-files -- '.clang-tidy' 'docs/coding-style.md' ;;
     *)
-        echo "usage: $0 <clang-format|clang-tidy|shellcheck|actionlint|hadolint|tidy-rationale>" >&2
+        echo "usage: $0 <clang-format|clang-tidy|shellcheck|actionlint|hadolint|module-includes|tidy-rationale>" >&2
         exit 2
         ;;
 esac

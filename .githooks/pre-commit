@@ -98,6 +98,16 @@ if [ ${#workflows[@]} -gt 0 ]; then
     fi
 fi
 
+# --- module boundaries ----------------------------------------------------
+# Reads the whole tree rather than the staged files: a relative include is a
+# statement about two directories, and the other one may not be in this commit.
+mapfile -t module_sources < <(for_check module-includes)
+if [ ${#module_sources[@]} -gt 0 ] && [ -x scripts/check-module-includes.sh ]; then
+    note "check-module-includes"
+    scripts/check-module-includes.sh \
+        || fail "an include climbs out of its own directory"
+fi
+
 # --- the reasons for the lint configuration -------------------------------
 mapfile -t tidy_config < <(for_check tidy-rationale)
 if [ ${#tidy_config[@]} -gt 0 ] && [ -x scripts/check-tidy-rationale.sh ]; then

@@ -71,8 +71,17 @@ and the flags in `command_line` are an example of the shape, not a feature.
 ## How it is laid out
 
 ```
-src/               everything, because nothing here is installed as a header
-test/              one test file per source file, plus one that runs the program
+CMakeLists.txt     what the project is called, what it installs, nothing else
+src/
+  CMakeLists.txt   the modules, and what each one is allowed to use
+  main.cpp         the only file that is not in a module
+  command_line/    one directory per module, named after it
+  counting/
+  report/
+test/
+  unit/            one module, called directly
+  integration/     more than one module, wired together in this process
+  e2e/             the program, started as a process
 cmake/             the generated version header's template
 docs/              why the configuration is what it is
 .devcontainer/     the pinned toolchain, used by CI and the dev container
@@ -84,20 +93,39 @@ project compiles against these headers, so none of them is installed and
 changing one breaks nobody. That is the difference from the library template,
 and it is why everything sits in `src/`.
 
+**A module can only use what it declares.** Each directory under `src/` is a
+static library whose include path is its own directory plus the directories of
+the modules named in its `target_link_libraries`. Reaching for one that is not
+named there does not compile:
+
+```
+fatal error: 'counting.hpp' file not found
+```
+
+So `src/CMakeLists.txt` is not a list of source files, it is the dependency
+graph, and it is the only place that graph exists. One library over the whole of
+`src/` cannot say this: every header is on every file's include path, and what
+depends on what becomes whatever the code happens to do.
+
+A quoted include is resolved relative to the file that writes it before any
+include path is consulted, so `"../counting/counting.hpp"` reaches past all of
+this and still links. `scripts/check-module-includes.sh` is what refuses it, and
+it runs in the commit hook and in CI.
+
 **`main()` decides nothing.** It parses, counts, prints and turns the result
-into an exit status. Everything it calls lives in `mycli_lib`, a static library
-that is built but never installed - because a function in a library can be
-tested and a function in `main()` can only be checked by starting a process and
-reading its output. That is the whole reason for the extra target.
+into an exit status. Everything it calls is in a module, because a function in a
+library can be called by a test and a function in `main()` can only be checked
+by starting a process and reading its output. `main.cpp` is the one file no test
+links, and the only place the three modules meet.
 
-**One feature is one header, one implementation and one test.** Three of them
-here, and each one does a single thing:
+**One feature is one module.** Three of them here, and each one does a single
+thing:
 
-| unit | does | knows about |
+| module | does | declares |
 | --- | --- | --- |
-| `command_line` | turns `argv` into an `Outcome` | CLI11, and nothing else does |
+| `command_line` | turns `argv` into an `Outcome` | CLI11, privately - nothing else sees it |
 | `counting` | counts lines, words and bytes in a stream | nothing |
-| `report` | turns counts into the line that gets printed | the other two |
+| `report` | turns counts into the line that gets printed | the other two, publicly |
 
 `counting::count` takes a `std::istream` rather than a file name, which is what
 lets its tests pass a `std::istringstream` instead of writing files. CLI11
@@ -105,9 +133,20 @@ appears in exactly one `.cpp` file and in no header, so replacing the argument
 parser is a change to `command_line.cpp` and to
 `cmake/modules/CommandLineDependencies.cmake`.
 
-To add a feature: `src/thing.hpp` for the declarations, `src/thing.cpp` for the
-code, `test/thing_test.cpp` for the tests, and add the source to
-`add_library(mycli_lib ...)` and the test to `add_executable(mycli_test ...)`.
+**One test executable per module**, so that the link line is part of the check:
+`mycli_counting_test` links `counting` and nothing else, and the day `counting`
+starts needing a piece of another module, it stops linking. A single test
+program over the whole tree has every module on its link line already, so an
+undeclared dependency resolves and the test passes.
+
+`test/integration/` is empty, and that is a fact about this program rather than
+an omission: its three modules meet only in `main()`, which cannot be linked
+into a test, so `test/e2e/` is what checks that wiring. The directory ships
+anyway, because a level invented under pressure is a level that gets skipped.
+
+To add a feature: `src/thing/thing.hpp` and `src/thing/thing.cpp`,
+`test/unit/thing_test.cpp`, then a target in `src/CMakeLists.txt` saying what
+`thing` may use and one in `test/unit/CMakeLists.txt` linking it.
 
 ## What is wired in
 
@@ -146,8 +185,8 @@ The job named "what this project can be built with" lists every row in its
 summary, and which of them were built.
 
 A job named "what BUILD_SHARED_LIBS=ON builds and installs" runs on every pull
-request, and here it installs no shared library at all: `mycli_lib` says
-`STATIC`, so the flag does not reach it, and the prefix gets the one binary.
+request, and here it installs no shared library at all: every module says
+`STATIC`, so the flag does not reach them, and the prefix gets the one binary.
 It prints the number of libraries it read, zero included, rather than letting
 a green tick stand for a count nobody has seen. What it checks here is that
 the flag changes nothing: configure, build, test and install still pass with
