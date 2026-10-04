@@ -40,22 +40,22 @@ ARG HADOLINT_VERSION=2.15.1
 ENV DEBIAN_FRONTEND=noninteractive
 
 # RUN is /bin/sh -c unless this says otherwise, and /bin/sh has no pipefail: a
-# pipeline is judged by its last command alone. Two of the lines below fetch a
-# signing key and pipe it into gpg, and gpg is perfectly happy to dearmor an
-# empty stream - so a failed download would have produced an empty keyring and a
-# successful build. Named here once rather than guarded at each pipe, for the
-# same reason the workflows set it on the shell rather than per step.
+# pipeline is judged by its last command alone, so whether a failed download
+# fails the build is left to whatever is on the right of the pipe. Named here
+# once rather than guarded at each pipe, for the same reason the workflows set it
+# on the shell rather than per step.
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
+# The two archive signing keys travel with this file rather than being fetched,
+# and apt reads an armored key when the name ends in .asc, so nothing dearmors
+# them. Why, their fingerprints, and what a rotation does: docs/toolchain.md.
+COPY kitware-archive-keyring.asc llvm-archive-keyring.asc /etc/apt/keyrings/
+
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates gnupg wget \
- && wget -qO- https://apt.kitware.com/keys/kitware-archive-latest.asc \
-      | gpg --dearmor -o /usr/share/keyrings/kitware-archive-keyring.gpg \
- && echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ ${UBUNTU_CODENAME} main" \
+ && apt-get install -y --no-install-recommends ca-certificates wget \
+ && echo "deb [signed-by=/etc/apt/keyrings/kitware-archive-keyring.asc] https://apt.kitware.com/ubuntu/ ${UBUNTU_CODENAME} main" \
       > /etc/apt/sources.list.d/kitware.list \
- && wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key \
-      | gpg --dearmor -o /usr/share/keyrings/llvm-archive-keyring.gpg \
- && echo "deb [signed-by=/usr/share/keyrings/llvm-archive-keyring.gpg] https://apt.llvm.org/${UBUNTU_CODENAME}/ llvm-toolchain-${UBUNTU_CODENAME}-${CLANG_VERSION} main" \
+ && echo "deb [signed-by=/etc/apt/keyrings/llvm-archive-keyring.asc] https://apt.llvm.org/${UBUNTU_CODENAME}/ llvm-toolchain-${UBUNTU_CODENAME}-${CLANG_VERSION} main" \
       > /etc/apt/sources.list.d/llvm.list \
  && apt-get update \
  && apt-get install -y --no-install-recommends \

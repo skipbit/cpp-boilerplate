@@ -9,13 +9,14 @@ deliberately not, and why the linter that reads it has one rule switched off.
 
 ## What is pinned, and how
 
-Three different kinds of pin, because the things being pinned are not alike.
+Four different kinds of pin, because the things being pinned are not alike.
 
 | what | how it is pinned | where |
 | --- | --- | --- |
 | CMake | an exact version, down to the packaging suffix | `ARG CMAKE_VERSION` |
 | Clang, GCC | the major version, which the package name carries | `ARG CLANG_VERSION`, `ARG GCC_VERSION` |
 | actionlint, hadolint | an exact release, downloaded as a binary | `ARG ACTIONLINT_VERSION`, `ARG HADOLINT_VERSION` |
+| the two archives' signing keys | the key itself, beside the Dockerfile | `.devcontainer/*-keyring.asc` |
 | everything else from apt | not pinned | - |
 
 The first three are pinned because a version change in them is a change to what
@@ -70,15 +71,56 @@ an image that quietly rots. Neither is worth having, and the thing they are
 meant to buy - a reproducible image - is already bought by pinning the base
 image, the compilers and the tools whose output this project actually reads.
 
+## The keys the archives are read with
+
+CMake comes from Kitware's repository and Clang from LLVM's, and apt reads
+neither of them without the key it signs with. Both keys sit beside the
+Dockerfile and are copied in:
+
+```dockerfile
+COPY kitware-archive-keyring.asc llvm-archive-keyring.asc /etc/apt/keyrings/
+```
+
+Which keys those are is written down here, because an armored key is not
+something a reviewer can check by reading:
+
+| archive | fingerprint | published at |
+| --- | --- | --- |
+| Kitware | `4DBEBE3EEC96E7B8C6EC5BE99E92FDC6C5B9BA75` | `apt.kitware.com/keys/kitware-archive-latest.asc` |
+| LLVM | `6084F3CF814B57C1CF12EFD515CF4D18AF4F7421` | `apt.llvm.org/llvm-snapshot.gpg.key` |
+
+A change to either file is reviewed against that table. A keyblock that is
+neither of these is a key apt would trust and nobody chose.
+
+A key is a constant, and fetching a constant puts somebody else's web server
+between a build and whether it works - a failure with nothing in it for anyone
+to act on. apt reads an armored key when the file name ends in `.asc`, so
+nothing dearmors them and the image installs no `gnupg`.
+
+What that trades away is noticing a rotation. When an archive starts signing
+with a key that is not the one here, apt refuses the archive:
+
+```
+E: The repository 'https://apt.kitware.com/ubuntu noble InRelease' is not signed.
+```
+
+A refused archive is a failed build rather than a package installed unverified,
+so the day it happens is loud. `dependency-freshness.yml` is what speaks before
+then: it compares both copies against what the archives publish - every
+fingerprint and expiry in them - so a replaced key, a new signing subkey and an
+extended expiry each arrive as a line in the weekly issue. It reports a key that
+is simply running out as well, 90 days ahead, because a key nobody replaces
+still stops working on the day it expires.
+
 ## The linter, and the one rule it is not allowed to make
 
 `hadolint` checks every Dockerfile in the repository on each pull request, and
-`scripts/lint-paths.sh` is what decides which those are. It is what catches the
-shape of bug that has no symptom: a `RUN` that pipes a download into a consumer,
+`scripts/lint-paths.sh` is what decides which those are. It is what catches a
+bug that need not have a symptom: a `RUN` that pipes a download into a consumer,
 in an image whose shell has no `pipefail`, is judged by the last command in the
-pipeline alone - so a failed download feeds an empty stream to a happy `gpg`,
-and the build succeeds with an empty keyring. That is `DL4006`, the rule about
-setting `pipefail` before a `RUN` that contains a pipe, and the reason
+pipeline alone - so whether a failed download fails the build is left to what
+the consumer makes of an empty stream. That is `DL4006`, the rule about setting
+`pipefail` before a `RUN` that contains a pipe, and the reason
 `SHELL ["/bin/bash", "-o", "pipefail", "-c"]` is set before the first `RUN` that
 contains one.
 
@@ -106,6 +148,7 @@ hadolint .devcontainer/Dockerfile
 ```
 
 `./scripts/install-hooks.sh` runs the same check on a Dockerfile you are about
-to commit. `dependency-freshness.yml` watches the pinned versions weekly and
-opens an issue when one of them falls behind, because neither Dependabot nor apt
-can see a version written into an `ARG`.
+to commit. `dependency-freshness.yml` watches the pinned versions and the two
+signing keys weekly and opens an issue when one of them falls behind, because
+neither Dependabot nor apt can see a version written into an `ARG` or a key that
+travels with the image.
