@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #
-# No include names a path with `.` or `..` in it, or an absolute one.
+# No include names a path this cannot read: one with `.` or `..` in it, an
+# absolute one, or a path that is not on the line at all.
 #
 #   ./scripts/check-module-includes.sh
 #
@@ -34,8 +35,7 @@ if [ ${#files[@]} -eq 0 ]; then
     exit 1
 fi
 
-# An include whose path is absolute or has a `.` or `..` element, after the
-# opening quote or angle bracket. Three cases, in the order the pattern has them:
+# Four cases, in the order the pattern has them:
 #
 #   /                  an absolute path, which names a header by where it sits
 #                      on this machine rather than by any include path.
@@ -43,10 +43,17 @@ fi
 #                      `./x.hpp`, `../x/x.hpp`.
 #   [^">]*/\.\.?/      a `.` or `..` element after a directory: `a/../b.hpp`,
 #                      `./../x.hpp`.
+#   [^"<[:space:]]     no quote and no angle bracket, so the path is not on this
+#                      line: `#include COUNTING` names a macro that holds one,
+#                      and `#include \` continues onto the next line. The first
+#                      was measured to reach another module and compile, and a
+#                      line is all this has, so it refuses both rather than
+#                      reporting that it looked.
 #
-# The pattern writes the last two as one optional prefix, `([^">]*/)?`. `./x.hpp`
-# is refused though it is harmless; the message says to write the bare name.
-climbs='^[[:space:]]*#[[:space:]]*include[[:space:]]*["<](/|([^">]*/)?\.\.?/)'
+# The pattern writes the two middle cases as one optional prefix, `([^">]*/)?`.
+# `./x.hpp` is refused though it is harmless; the message says to write the bare
+# name.
+climbs='^[[:space:]]*#[[:space:]]*include[[:space:]]*(["<](/|([^">]*/)?\.\.?/)|[^"<[:space:]])'
 
 # Read out of the index, like the list above and like the hook's formatting
 # check: a rename that is half staged leaves the working tree with paths the
@@ -68,13 +75,17 @@ if [ -n "$offenders" ]; then
     printf '%s\n' "$offenders" >&2
     cat >&2 << 'MESSAGE'
 
-error: the includes above name a path with `.` or `..` in it, or an absolute one.
+error: the includes above name a path this check cannot read.
 
 A file includes a header by the name its target's include path gives it. A path
 with `.` or `..` in it reaches a header that include path never offered, and
 the dependency it creates is declared nowhere. Declare the dependency where the
 target is defined, and include the header by its own name. `#include "./x.hpp"`
 is refused too: write `#include "x.hpp"`.
+
+An include that names a macro, or carries its path on the next line, is refused
+for a different reason: the path is not here to judge, and a check that says
+nothing about it would be reporting that it had looked.
 MESSAGE
     exit 1
 fi

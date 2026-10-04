@@ -18,12 +18,10 @@
 # reaches whoever links command_line; CLI11 appears in one .cpp file and no
 # header, so it is PRIVATE and stops here.
 #
-# One hole is left. A path with `.` or `..` in it reaches a header the include
-# path never offered: "../counting/counting.hpp" from the file that writes it,
-# and <../counting/counting.hpp> from each include directory, both of which
-# compile and link, since all of these end up in the same program, and the
-# dependency they create is declared nowhere. scripts/check-module-includes.sh
-# is what refuses them.
+# One hole is left: an include can name a path rather than a name -
+# "../counting/counting.hpp" - and reach a header this include path never
+# offered, since all of these end up in the same program. Which paths are
+# refused, and why each one, is in scripts/check-module-includes.sh.
 
 # What every module is, so that a module is a name and not six lines to keep in
 # step with the others. A module that leaves out cppbp_enable_clang_tidy would

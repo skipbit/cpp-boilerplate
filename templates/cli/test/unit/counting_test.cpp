@@ -6,8 +6,8 @@
 #include <gtest/gtest.h>
 
 // A feature is a header, an implementation and this file, plus a line each in
-// src/CMakeLists.txt and test/unit/CMakeLists.txt. A feature without a test is
-// not finished.
+// src/CMakeLists.txt and test/unit/CMakeLists.txt - and the executable's link
+// line, if main() calls it. A feature without a test is not finished.
 //
 // count() takes a stream, so none of this needs a file on disk.
 

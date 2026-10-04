@@ -31,9 +31,11 @@ auto parse(int argc, const char* const* argv) -> Outcome
         return {.options = {}, .run = false, .status = app.exit(error)};
     }
 
-    const auto& asked = options.selection;
-    if (! (asked.lines || asked.words || asked.bytes)) {
-        options.selection = counting::Selection{};
+    if (! (options.selection.lines || options.selection.words || options.selection.bytes)) {
+        // Written out rather than left to Selection's declared defaults: what
+        // this program does when nobody asks for a count is this function's
+        // answer, and it should not change because another module's header did.
+        options.selection = {.lines = true, .words = true, .bytes = true};
     }
 
     return {.options = options, .run = true, .status = 0};

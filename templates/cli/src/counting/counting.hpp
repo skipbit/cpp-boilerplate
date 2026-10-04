@@ -19,8 +19,12 @@ struct Counts {
     std::size_t bytes = 0;
 };
 
-/// Which of the counts to print. The declared default is every count, which is
-/// what the program does when nobody asks for one in particular.
+/// Which of the counts to print. The declared default is every count.
+///
+/// Here, rather than beside whoever fills it in or whoever reads it, because
+/// command_line and report both need it and this is the module they both
+/// already name: a type two modules share belongs under both rather than in
+/// one of them, which would make the other depend on it for a struct.
 struct Selection {
     bool lines = true;
     bool words = true;

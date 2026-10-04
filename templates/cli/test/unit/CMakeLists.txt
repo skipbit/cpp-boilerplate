@@ -13,6 +13,10 @@
 #
 # TEST_PREFIX puts the module in front of every test name, so that ctest output
 # and a failing run say which module is wrong without opening the file.
+#
+# A test that needs something else - a fixture target, a thread library - names
+# it in its own target_link_libraries after the call, the way a module with a
+# second source file adds it with target_sources.
 function(mycli_add_unit_test module)
     add_executable(mycli_${module}_test ${module}_test.cpp)
     target_link_libraries(mycli_${module}_test PRIVATE mycli_${module} GTest::gtest_main)

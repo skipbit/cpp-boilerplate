@@ -62,9 +62,10 @@ mistake is harder to notice than the template author's still being there, and
 0BSD asks for no attribution either way.
 
 The second points git at `.githooks/`, which runs clang-format, clang-tidy,
-actionlint, hadolint, shellcheck, `check-module-includes` and
-`check-tidy-rationale` on the files in a commit; anything not installed is
-skipped rather than treated as a failure. The dev container runs it for you.
+actionlint, hadolint and shellcheck on the files in a commit - anything not
+installed is skipped rather than treated as a failure - and two checks that
+ship with the template, `check-module-includes` and `check-tidy-rationale`,
+which read the tree rather than the commit. The dev container runs it for you.
 
 Then replace what it counts with what your program does. `counting`, `report`
 and the flags in `command_line` are an example of the shape, not a feature.
@@ -108,11 +109,10 @@ graph, and it is the only place that graph exists. One library over the whole of
 `src/` cannot say this: every header is on every file's include path, and what
 depends on what becomes whatever the code happens to do.
 
-A path with `.` or `..` in it reaches a header the include path never offered,
-and the dependency it creates is declared nowhere: `"../counting/counting.hpp"`
-from the file that writes it, `<../counting/counting.hpp>` from each include
-directory, and both still link. `scripts/check-module-includes.sh` refuses
-them, and it runs in the commit hook and in CI.
+An include can name a path rather than a name - `"../counting/counting.hpp"` -
+and reach a header this include path never offered, declaring nothing. Which
+paths are refused and why each one is in `scripts/check-module-includes.sh`,
+which runs in the commit hook and in CI.
 
 **`main()` decides nothing.** It parses, counts, prints and turns the result
 into an exit status. Everything it calls is in a module, because a function in a
@@ -152,8 +152,10 @@ anyway, because a level invented under pressure is a level that gets skipped.
 To add a feature: `src/thing/thing.hpp` and `src/thing/thing.cpp`,
 `test/unit/thing_test.cpp`, then `mycli_add_module(thing)` in `src/CMakeLists.txt`
 with a `target_link_libraries` saying what `thing` may use, and
-`mycli_add_unit_test(thing)` in `test/unit/CMakeLists.txt`. A module with a
-second source file adds it after the call with `target_sources`.
+`mycli_add_unit_test(thing)` in `test/unit/CMakeLists.txt`. If `main()` calls it,
+add it to the executable's `target_link_libraries` as well - that line is what
+puts a module on `main.cpp`'s include path. A module with a second source file
+adds it after the call with `target_sources`.
 
 ## What is wired in
 
