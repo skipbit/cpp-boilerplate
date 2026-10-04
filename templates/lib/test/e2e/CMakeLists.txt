@@ -1,4 +1,4 @@
-# The tests above prove the code works. This one proves the package works.
+# The tests in unit/ prove the code works. This one proves the package works.
 #
 # A library that builds and passes its own tests can still be unusable: the
 # export set may miss a target, the config file may reference a path that only

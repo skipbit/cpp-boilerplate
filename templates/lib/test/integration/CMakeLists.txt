@@ -12,7 +12,7 @@
 #   cppbp_set_warnings(mylib_integration_test PRIVATE)
 #   cppbp_set_sanitizers(mylib_integration_test PRIVATE)
 #   cppbp_enable_clang_tidy(mylib_integration_test)
-#   gtest_discover_tests(mylib_integration_test)
+#   gtest_discover_tests(mylib_integration_test TEST_PREFIX "integration.")
 #
 # The directory is here rather than added when it is first needed, because a
 # level that has to be invented under pressure is a level that gets skipped.
