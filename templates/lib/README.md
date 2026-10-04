@@ -66,7 +66,10 @@ skipped rather than treated as a failure. The dev container runs it for you.
 ```
 include/mylib/     public headers - declarations only
 src/               implementation, plus headers nobody else can include
-test/              unit tests, and a check that the installed package works
+test/
+  unit/            one public header, called directly
+  integration/     more than one, used together
+  e2e/             the installed package, found with find_package and linked
 examples/          programs a reader can run
 cmake/             package config, pkg-config and version templates
 docs/              why the configuration is what it is
@@ -81,9 +84,17 @@ that everything depends on.
 **Public headers declare; `src/` implements.** Anything under `src/` is never
 installed, so changing it is never a breaking change for anyone.
 
+**One test executable per public header**, so that a failure names the header it
+came from. They all link `mylib::mylib`, because one library is what this
+project publishes; the directory a test sits in is what says which level it is,
+and `test/integration/` ships empty because there is one feature here and
+nothing yet to combine it with. The directory is there anyway: a level invented under pressure is a
+level that gets skipped.
+
 To add a feature: `include/mylib/thing.hpp` for the declarations, `src/thing.cpp`
-for the code, `test/thing_test.cpp` for the tests, and add the header and source
-to `target_sources` in `CMakeLists.txt`.
+for the code, `test/unit/thing_test.cpp` for the tests, and add the header and
+source to `target_sources` in `CMakeLists.txt` and the test to
+`test/unit/CMakeLists.txt`.
 
 ## What is wired in
 
