@@ -19,6 +19,14 @@ struct Counts {
     std::size_t bytes = 0;
 };
 
+/// Which of the counts to print. The declared default is every count, which is
+/// what the program does when nobody asks for one in particular.
+struct Selection {
+    bool lines = true;
+    bool words = true;
+    bool bytes = true;
+};
+
 /// Counts lines, whitespace-separated words and bytes in `input`.
 ///
 /// A line is a `\n`; text that does not end in one still counts as a line, the

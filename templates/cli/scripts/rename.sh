@@ -6,7 +6,7 @@
 #   ./scripts/rename.sh yourtool --url https://github.com/you/yourtool
 #   ./scripts/rename.sh yourtool --author "Your Name"
 #
-# Covers the namespace, the two targets, the generated version header and the
+# Covers the namespace, every target, the generated version header and the
 # name the program calls itself in its own messages. The uppercase form (CMake
 # options) follows automatically.
 #

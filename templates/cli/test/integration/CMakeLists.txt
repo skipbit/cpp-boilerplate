@@ -1,7 +1,8 @@
 # Where a test goes when it needs more than one module and no process.
 #
 # This template ships none, and the reason is a fact about this program rather
-# than an omission: its three modules meet in exactly one place, main(), and
+# than an omission: its three modules meet in exactly one place, main().
+# command_line and report each name counting and neither names the other, and
 # main() is not in a library, so there is nothing to link. e2e/ is what checks
 # that wiring here.
 #
@@ -10,7 +11,7 @@
 # here:
 #
 #   add_executable(mycli_integration_test pipeline_test.cpp)
-#   target_link_libraries(mycli_integration_test PRIVATE mycli_report GTest::gtest_main)
+#   target_link_libraries(mycli_integration_test PRIVATE mycli_command_line mycli_report GTest::gtest_main)
 #   cppbp_set_warnings(mycli_integration_test PRIVATE)
 #   cppbp_set_sanitizers(mycli_integration_test PRIVATE)
 #   cppbp_enable_clang_tidy(mycli_integration_test)

@@ -363,8 +363,10 @@ jobs:
       - name: Check that every disabled check is explained
         run: ./scripts/check-tidy-rationale.sh
 
-      # The one way a module can use another one it never declared and still
-      # build: a relative include, resolved before any include path is read.
+      # A path with `.` or `..` in it reaches a header the target's include path
+      # never offered, from the file that writes it (quoted) or from each include
+      # directory (angle brackets), and the dependency it creates is declared
+      # nowhere. It still builds, so only this says so.
       - name: Check that no include climbs out of its own directory
         run: ./scripts/check-module-includes.sh
 

@@ -1,4 +1,4 @@
-# The tests above prove the pieces work. This one proves the program does: it
+# The tests in unit/ prove the pieces work. This one proves the program does: it
 # runs the built executable the way somebody at a shell would, and checks what
 # comes back on standard output and in the exit status. Nothing else here can
 # fail if main() wires the pieces together wrongly.

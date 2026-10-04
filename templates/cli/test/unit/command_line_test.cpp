@@ -22,9 +22,9 @@ TEST(Parse, AsksForEverythingWhenAskedForNothing)
     const auto parsed = parse(std::array{"mycli"});
     ASSERT_TRUE(parsed.run);
     const auto& options = parsed.options;
-    EXPECT_TRUE(options.lines);
-    EXPECT_TRUE(options.words);
-    EXPECT_TRUE(options.bytes);
+    EXPECT_TRUE(options.selection.lines);
+    EXPECT_TRUE(options.selection.words);
+    EXPECT_TRUE(options.selection.bytes);
     EXPECT_TRUE(options.files.empty());
 }
 
@@ -33,9 +33,9 @@ TEST(Parse, OneFlagTurnsTheOthersOff)
     const auto parsed = parse(std::array{"mycli", "-w"});
     ASSERT_TRUE(parsed.run);
     const auto& options = parsed.options;
-    EXPECT_FALSE(options.lines);
-    EXPECT_TRUE(options.words);
-    EXPECT_FALSE(options.bytes);
+    EXPECT_FALSE(options.selection.lines);
+    EXPECT_TRUE(options.selection.words);
+    EXPECT_FALSE(options.selection.bytes);
 }
 
 TEST(Parse, CollectsFileNamesInOrder)
