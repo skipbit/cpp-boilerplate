@@ -9,7 +9,7 @@ name: dependency freshness
 
 on:
   schedule:
-    - cron: "0 20 * * 1" # Monday 05:00 JST
+    - cron: "0 20 * * 1" # Monday 20:00 UTC, Tuesday 05:00 JST
   workflow_dispatch:
 
 permissions:
@@ -245,22 +245,54 @@ jobs:
       # One open issue at a time: a weekly job that opens a new issue every week
       # trains everyone to ignore the label.
       #
+      # No `if:` of its own, so a comparison that did not finish skips this
+      # step. A probe that could not answer is not an answer that nothing is
+      # behind, and an answer that nothing is behind closes the issue below.
+      #
       # STALE goes through env:. A ${{ }} expansion is pasted in before bash
       # reads the line, and the backticks in the list would run as commands.
-      - name: Open or update an issue
-        if: steps.compare.outputs.stale != ''
+      - name: Open, update, or close the issue
         env:
           GH_TOKEN: ${{ github.token }}
           STALE: ${{ steps.compare.outputs.stale }}
         run: |
           set -euo pipefail
           title="Dependencies are behind"
-          # \n\n: the list ends without a newline of its own.
-          body=$(printf 'These pins are behind what is currently published.\n\n%s\n\nThis issue is updated by the dependency-freshness workflow; it is not a to-do list with a deadline.\n' "$STALE")
 
-          existing=$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number // empty')
+          # Quoted, and one match or none: an unquoted search is tokenised, so
+          # it answers with whatever issue happens to contain these words, and
+          # what it answers with is edited or closed below.
+          # The title has to be asked for as well as the number, or the filter
+          # compares against a field that is not there and answers none.
+          matches=$(gh issue list --state open --search "\"$title\" in:title" \
+            --json number,title --jq '[.[] | select(.title == "'"$title"'")] | length')
+          existing=""
+          if [ "$matches" -gt 1 ]; then
+            echo "::error::${matches} open issues have this title; not touching any of them"
+            exit 1
+          elif [ "$matches" -eq 1 ]; then
+            existing=$(gh issue list --state open --search "\"$title\" in:title" \
+              --json number,title --jq '[.[] | select(.title == "'"$title"'")][0].number')
+          fi
+
+          # Pins that caught up close the issue, so an open one means something
+          # is behind now rather than having been behind once. Nothing waits on
+          # somebody confirming they read it: what cleared the issue is a
+          # comparison this job just made.
+          if [ -z "$STALE" ]; then
+            [ -n "$existing" ] || { echo "Everything is current, and no issue is open."; exit 0; }
+            gh issue close "$existing" \
+              --comment "Every pin is current as of $(date -u '+%Y-%m-%d %H:%M UTC')."
+            echo "closed #${existing}"
+            exit 0
+          fi
+
+          # \n\n: the list ends without a newline of its own.
+          body=$(printf 'These pins are behind what is currently published.\n\n%s\n\nThis issue is updated by the dependency-freshness workflow, and closes when the pins catch up; it is not a to-do list with a deadline.\n' "$STALE")
+
           if [ -n "$existing" ]; then
             gh issue edit "$existing" --body "$body"
+            echo "updated #${existing}"
           else
             gh issue create --title "$title" --body "$body"
           fi

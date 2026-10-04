@@ -177,7 +177,7 @@ Dependabot reads the last row and nothing else: it does not know what a
 `FetchContent` tag is, and it cannot see a version pinned inside a `RUN` layer.
 The `dependency-freshness` job covers the rest by asking the upstream
 repositories directly and opening a single, updated issue when something is
-behind.
+behind, which it closes once the pins catch up.
 
 ## Contributing
 
