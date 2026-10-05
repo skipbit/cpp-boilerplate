@@ -8,5 +8,10 @@ add_test(NAME myapp.starts
             "${CMAKE_CURRENT_BINARY_DIR}/run")
 
 # Longer than it needs, because a sanitizer build is slower than this one.
+#
+# REQUIRED_FILES because add_test expands the path and checks nothing: in a
+# build directory where only a test was built, this would start a program that
+# is not there and fail inside it. ctest says NOT RUN instead.
 set_tests_properties(myapp.starts PROPERTIES
-    TIMEOUT 120 ENVIRONMENT "${MYAPP_TEST_ENVIRONMENT}")
+    TIMEOUT 120 ENVIRONMENT "${MYAPP_TEST_ENVIRONMENT}"
+    REQUIRED_FILES "$<TARGET_FILE:myapp>")

@@ -11,6 +11,12 @@
 # is on its link line already, so a dependency nobody declared resolves and the
 # test passes.
 #
+# Nor can it for a module that has dependencies of its own: a static library
+# carries what it links privately to whoever links it, so myapp_filtered_entries_test has presentation on
+# its link line whether or not filtered_entries named it. The answer the link line
+# gives is a firm one for a leaf, and the include path and
+# scripts/check-module-includes.sh are what answer above that.
+#
 # TEST_PREFIX puts the module in front of every test name, so that ctest output
 # and a failing run say which module is wrong without opening the file.
 #

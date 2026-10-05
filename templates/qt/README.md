@@ -115,7 +115,8 @@ The second points git at `.githooks/`, which runs clang-format, clang-tidy,
 actionlint, hadolint and shellcheck on the files in a commit - anything not
 installed is skipped rather than treated as a failure - and two checks that
 ship with the template, `check-module-includes` and `check-tidy-rationale`,
-which read the tree rather than the commit. The dev container runs it for you.
+which run when a commit touches the files they watch and then judge what is
+staged rather than what is on disk. The dev container runs it for you.
 
 Then replace what it shows. `catalogue` holds a list of the tools this template
 uses, which is an example of the shape rather than a feature.
@@ -154,7 +155,7 @@ the modules named in its `target_link_libraries`. Reaching for one that is not
 named there does not compile:
 
 ```
-fatal error: 'presentation.hpp' file not found
+fatal error: presentation.hpp: No such file or directory
 ```
 
 So `src/CMakeLists.txt` is the dependency graph rather than a list of source
