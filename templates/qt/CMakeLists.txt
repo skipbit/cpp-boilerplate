@@ -68,47 +68,20 @@ option(MYAPP_INSTALL "Generate the install rules" ${PROJECT_IS_TOP_LEVEL})
 set(MYAPP_GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
 configure_file(cmake/version.hpp.in "${MYAPP_GENERATED_DIR}/myapp/version.hpp" @ONLY)
 
-# Two libraries, and the line between them is the whole design. myapp_core holds
-# what the program knows and is not linked against Qt at all, so a QString in it
-# is a compile error rather than a review comment - and its tests run with no
-# QGuiApplication, which is what "the logic is not in the interface" has to mean
-# if it is to mean anything.
+# The modules are in src/CMakeLists.txt: what the program knows, one directory
+# each, and what each one may use. The line this template is built around is
+# declared there - catalogue and presentation do not name Qt, so a QString in
+# either one is a compile error.
 #
-# Neither is installed. An application publishes a command and a desktop entry,
-# not an API; these exist so the tests have something to link.
-add_library(myapp_core STATIC
-    src/catalogue.cpp
-    src/presentation.cpp)
-
-target_include_directories(myapp_core PUBLIC
-    "${CMAKE_CURRENT_LIST_DIR}/src"
-    "${MYAPP_GENERATED_DIR}")
-
-# Raise this to cxx_std_26 and the CI matrix will tell you what breaks.
-target_compile_features(myapp_core PUBLIC cxx_std_23)
-
-cppbp_set_warnings(myapp_core PRIVATE)
-cppbp_set_sanitizers(myapp_core PUBLIC)
-cppbp_enable_clang_tidy(myapp_core)
-
-# The C++ that Qt knows about: the class QML binds to, and the assembly. Its own
-# library rather than part of the QML module below, so that the module can hold
-# nothing but generated code - and can then be judged by nothing.
-add_library(myapp_bridge STATIC
-    src/filtered_entries.cpp
-    src/startup.cpp)
-
-set_target_properties(myapp_bridge PROPERTIES AUTOMOC ON)
-target_link_libraries(myapp_bridge PUBLIC myapp_core Qt6::Quick)
-
-cppbp_set_warnings(myapp_bridge PRIVATE)
-cppbp_set_sanitizers(myapp_bridge PUBLIC)
-cppbp_enable_clang_tidy(myapp_bridge)
+# Nothing below is a module. It is the QML module, the plugin and the executable
+# Qt generates around that code, and the rules that keep generated code from
+# being judged by rules written for people.
+add_subdirectory(src)
 
 # The QML module: the .qml files, compiled into the binary as resources so that
 # the installed program is one file, and the header Qt reads to find out what
 # `import myapp` should offer. Only the header - the implementation is in
-# myapp_bridge, where it is compiled with the warnings on.
+# myapp_filtered_entries, where it is compiled with the warnings on.
 qt_add_library(myapp_ui STATIC)
 
 qt_add_qml_module(myapp_ui
@@ -120,22 +93,24 @@ qt_add_qml_module(myapp_ui
     # directory the other could not be written to.
     OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/qml/myapp"
     SOURCES
-        src/filtered_entries.hpp
+        src/filtered_entries/filtered_entries.hpp
     QML_FILES
         qml/Main.qml)
 
-target_link_libraries(myapp_ui PUBLIC myapp_bridge)
+target_link_libraries(myapp_ui PUBLIC myapp_filtered_entries)
 cppbp_set_sanitizers(myapp_ui PUBLIC)
 
 qt_add_executable(myapp src/main.cpp)
-target_link_libraries(myapp PRIVATE myapp_ui myapp_uiplugin)
+target_link_libraries(myapp PRIVATE myapp_startup myapp_ui myapp_uiplugin)
 cppbp_set_warnings(myapp PRIVATE)
 cppbp_set_sanitizers(myapp PRIVATE)
 cppbp_enable_clang_tidy(myapp)
 
-# Everything above that is not one of the three named below holds generated code
+# Everything this directory defines except the executable holds generated code
 # and nothing else: the compiled QML, the resource loaders, the type
-# registrations, the plugin. qt_add_qml_module gives its helper targets a copy of
+# registrations, the plugin. The modules are defined in src/, so this property
+# does not reach them - it is read per directory, and that is the whole reason
+# they can be moved there without being swept up here. qt_add_qml_module gives its helper targets a copy of
 # the backing target's compile options, so leaving them alone would mean judging
 # generated code by rules written for people - and it fails, loudly and
 # unfixably: GCC at -O3 reports a possible null dereference inside Qt's own
@@ -156,7 +131,7 @@ get_property(myapp_all_targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
 cppbp_sanitizer_flags(myapp_sanitizer_flags)
 
 foreach(myapp_target IN LISTS myapp_all_targets)
-    if(NOT myapp_target MATCHES "^(myapp|myapp_core|myapp_bridge)$")
+    if(NOT myapp_target STREQUAL "myapp")
         set_target_properties(${myapp_target} PROPERTIES
             COMPILE_OPTIONS "${myapp_sanitizer_flags}")
     endif()

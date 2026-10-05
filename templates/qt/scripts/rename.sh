@@ -6,7 +6,7 @@
 #   ./scripts/rename.sh yourapp --url https://github.com/you/yourapp
 #   ./scripts/rename.sh yourapp --author "Your Name"
 #
-# Covers the namespace, the three targets, the generated version header, the
+# Covers the namespace, every target, the generated version header, the
 # window title, and the desktop entry - both the name of its template file and
 # what is written inside it. The uppercase form (CMake options) follows
 # automatically.
@@ -194,7 +194,7 @@ echo "    'Make it yours' is the instructions you have just finished following"
 if [ -z "$homepage" ]; then
     echo "  - put HOMEPAGE_URL back in project() once this has a home to point at"
 fi
-echo "  - replace what the application shows: src/catalogue.cpp is an example, not a feature"
+echo "  - replace what the application shows: src/catalogue/ is an example, not a feature"
 echo "  - read desktop/${new}.desktop.in and give it a Categories= that fits"
 echo "  - delete this script"
 echo "  - cmake --preset debug && cmake --build --preset debug && ctest --preset debug"
