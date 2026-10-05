@@ -19,6 +19,14 @@
 #
 # This is what refuses them, in a second.
 #
+# One path is left that it does not refuse, and the reason is that no line can
+# tell it from a legitimate one: a quoted include is resolved from the directory
+# of the file that writes it, so a file sitting directly in src/ can name a
+# module downward - `#include "task/task.hpp"` - and reach it. Refusing a
+# slashed quoted include altogether would refuse a library's own public header,
+# which is the same shape. What is left is a file outside any module, which in
+# these templates is main.cpp, and it already links what it uses.
+#
 # The file list comes from scripts/lint-paths.sh, which .githooks/pre-commit
 # asks the same question of, so the hook cannot check an extension this does not.
 

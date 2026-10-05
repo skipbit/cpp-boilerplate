@@ -65,7 +65,8 @@ The second points git at `.githooks/`, which runs clang-format, clang-tidy,
 actionlint, hadolint and shellcheck on the files in a commit - anything not
 installed is skipped rather than treated as a failure - and two checks that
 ship with the template, `check-module-includes` and `check-tidy-rationale`,
-which read the tree rather than the commit. The dev container runs it for you.
+which run when a commit touches the files they watch and then judge what is
+staged rather than what is on disk. The dev container runs it for you.
 
 Then replace what it counts with what your program does. `counting`, `report`
 and the flags in `command_line` are an example of the shape, not a feature.
@@ -73,7 +74,7 @@ and the flags in `command_line` are an example of the shape, not a feature.
 ## How it is laid out
 
 ```
-CMakeLists.txt     what the project is called, what it installs, nothing else
+CMakeLists.txt     the project, what it can be configured with, what it installs
 src/
   CMakeLists.txt   the modules, and what each one is allowed to use
   main.cpp         the only file that is not in a module
@@ -101,7 +102,7 @@ the modules named in its `target_link_libraries`. Reaching for one that is not
 named there does not compile:
 
 ```
-fatal error: 'counting.hpp' file not found
+fatal error: counting.hpp: No such file or directory
 ```
 
 So `src/CMakeLists.txt` is not a list of source files, it is the dependency
