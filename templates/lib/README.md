@@ -61,7 +61,8 @@ The second points git at `.githooks/`, which runs clang-format, clang-tidy,
 actionlint, hadolint and shellcheck on the files in a commit - anything not
 installed is skipped rather than treated as a failure - and two checks that
 ship with the template, `check-module-includes` and `check-tidy-rationale`,
-which read the tree rather than the commit. The dev container runs it for you.
+which run when a commit touches the files they watch and then judge what is
+staged rather than what is on disk. The dev container runs it for you.
 
 ## How it is laid out
 
