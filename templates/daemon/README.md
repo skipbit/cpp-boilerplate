@@ -97,7 +97,8 @@ The second points git at `.githooks/`, which runs clang-format, clang-tidy,
 actionlint, hadolint and shellcheck on the files in a commit - anything not
 installed is skipped rather than treated as a failure - and two checks that
 ship with the template, `check-module-includes` and `check-tidy-rationale`,
-which read the tree rather than the commit. The dev container runs it for you.
+which run when a commit touches the files they watch and then judge what is
+staged rather than what is on disk. The dev container runs it for you.
 
 Then replace what it does. `task.cpp` counts its own runs, which is an example
 of the shape rather than a feature.
@@ -105,7 +106,7 @@ of the shape rather than a feature.
 ## How it is laid out
 
 ```
-CMakeLists.txt     what the project is called, what it installs, nothing else
+CMakeLists.txt     the project, what it can be configured with, what it installs
 src/
   CMakeLists.txt   the modules, and what each one is allowed to use
   main.cpp         the only file that is not in a module
@@ -135,7 +136,7 @@ the modules named in its `target_link_libraries`. Reaching for one that is not
 named there does not compile:
 
 ```
-fatal error: 'task.hpp' file not found
+fatal error: task.hpp: No such file or directory
 ```
 
 So `src/CMakeLists.txt` is not a list of source files, it is the dependency
@@ -155,15 +156,18 @@ called by a test and a loop in `main()` can only be checked by starting a
 process and sending it signals. `main.cpp` is the one file no test links, and
 the only place the three top modules meet.
 
-**One thing per module, and the last column is the design.**
+**One thing per module, and the last two columns are the design.** What a
+module declares is in `src/CMakeLists.txt` and the build enforces it. What a
+module is the only one allowed to touch is not in the build at all, and this is
+where it is written down.
 
-| module | does | declares |
-| --- | --- | --- |
-| `options` | turns `argv` and a configuration file into `Options` | CLI11, privately - nothing else sees it |
-| `shutdown` | turns signals into an answer the loop can read | `service` and `unique_fd`, publicly |
-| `unique_fd` | closes a file descriptor exactly once | nothing |
-| `service` | works, waits, works again, until asked to stop | `options` publicly, `task` privately |
-| `task` | one run of the work | nothing |
+| module | does | declares | and is the only one that |
+| --- | --- | --- | --- |
+| `options` | turns `argv` and a configuration file into `Options` | CLI11, privately - nothing else sees it | reads the configuration file |
+| `shutdown` | turns signals into an answer the loop can read | `service` and `unique_fd`, publicly | names a signal, a `sigset_t` or a `poll` |
+| `unique_fd` | closes a file descriptor exactly once | nothing | calls `close()` |
+| `service` | works, waits, works again, until asked to stop | `options` publicly, `task` privately | decides when to run and when to stop |
+| `task` | one run of the work | nothing | does the work itself |
 
 `service` does not know that `shutdown` exists, and the build is what says so:
 `service` names it nowhere, so `shutdown.hpp` is not on its include path.

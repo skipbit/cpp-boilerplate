@@ -14,7 +14,7 @@
 #
 #   add_executable(mydaemon_integration_test loop_test.cpp)
 #   target_link_libraries(mydaemon_integration_test
-#       PRIVATE mydaemon_shutdown mydaemon_task GTest::gtest_main)
+#       PRIVATE mydaemon_shutdown mydaemon_task Threads::Threads GTest::gtest_main)
 #   cppbp_set_warnings(mydaemon_integration_test PRIVATE)
 #   cppbp_set_sanitizers(mydaemon_integration_test PRIVATE)
 #   cppbp_enable_clang_tidy(mydaemon_integration_test)

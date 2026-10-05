@@ -10,3 +10,9 @@ add_test(NAME mydaemon.answers-signals
 
 # Longer than it needs, because a sanitizer build is slower than this one.
 set_tests_properties(mydaemon.answers-signals PROPERTIES TIMEOUT 120)
+
+# add_test expands the path and checks nothing. In a build directory where only
+# a test was built, this would start a program that is not there and fail inside
+# it; REQUIRED_FILES makes ctest say NOT RUN instead.
+set_tests_properties(mydaemon.answers-signals PROPERTIES
+    REQUIRED_FILES "$<TARGET_FILE:mydaemon>")

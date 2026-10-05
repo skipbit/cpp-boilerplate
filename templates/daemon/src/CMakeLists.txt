@@ -6,7 +6,7 @@
 # its target_link_libraries, so reaching for one that is not named there does not
 # compile:
 #
-#   fatal error: 'task.hpp' file not found
+#   fatal error: task.hpp: No such file or directory
 #
 # That is what the extra targets buy. One library over the whole of src/ puts
 # every header on every file's include path, and the dependencies between the
@@ -31,7 +31,8 @@
 # the latter is the file being processed when the function is called.
 #
 # A module with a second source file adds it after the call with
-# target_sources.
+# target_sources. One with no source file at all is not this function's shape:
+# an INTERFACE library is, and it is three lines written out.
 function(mydaemon_add_module name)
     add_library(mydaemon_${name} STATIC ${name}/${name}.cpp)
     target_include_directories(mydaemon_${name} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/${name}")
