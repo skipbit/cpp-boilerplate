@@ -413,9 +413,10 @@ jobs:
       - name: Check that every disabled check is explained
         run: ./scripts/check-tidy-rationale.sh
 
-      # The one way a module can use another one it never declared and still
-      # build: a relative include, resolved before any include path is read.
-      - name: Check that no include climbs out of its own directory
+      # An include can name a header the target's include path never offered,
+      # and the dependency that creates is declared nowhere. It still builds, so
+      # only this says so; the script says which paths it refuses and why.
+      - name: Check that no include names a path it should not
         run: ./scripts/check-module-includes.sh
 
       - name: Run clang-tidy as part of the build

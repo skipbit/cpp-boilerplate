@@ -3,6 +3,8 @@
 #include <string>
 #include <vector>
 
+#include "counting.hpp"
+
 // Argument parsing, kept out of main() so that it can be tested. A program
 // whose parsing lives in main() can only be checked by running the program and
 // reading its output; this one is checked by calling a function.
@@ -16,9 +18,7 @@ namespace mycli::command_line {
 struct Options {
     /// Empty means standard input.
     std::vector<std::string> files;
-    bool lines = true;
-    bool words = true;
-    bool bytes = true;
+    counting::Selection selection;
 };
 
 /// What reading the command line produced. The three fields are read together.

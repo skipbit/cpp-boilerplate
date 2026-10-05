@@ -38,7 +38,7 @@ int main(int argc, char** argv)
             total += mycli::counting::count(file);
         }
 
-        std::cout << mycli::report::format(total, options) << '\n';
+        std::cout << mycli::report::format(total, options.selection) << '\n';
         return 0;
     } catch (const std::exception& error) {
         // A command line program that ends in an unhandled exception prints a

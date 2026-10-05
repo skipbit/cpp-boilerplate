@@ -50,7 +50,7 @@ Everything is called `mycli`. Rename it:
 ./scripts/install-hooks.sh
 ```
 
-The first covers the namespace, both targets, the generated version header, the
+The first covers the namespace, every target, the generated version header, the
 name the program prints in its own messages, and the homepage in `project()`.
 The homepage comes from the `origin` remote, or from `--url`
 (`./scripts/rename.sh yourtool --url https://github.com/you/yourtool`); with
@@ -62,8 +62,11 @@ mistake is harder to notice than the template author's still being there, and
 0BSD asks for no attribution either way.
 
 The second points git at `.githooks/`, which runs clang-format, clang-tidy,
-actionlint, hadolint and shellcheck on the files in a commit; anything not installed is
-skipped rather than treated as a failure. The dev container runs it for you.
+actionlint, hadolint and shellcheck on the files in a commit - anything not
+installed is skipped rather than treated as a failure - and two checks that
+ship with the template, `check-module-includes` and `check-tidy-rationale`,
+which run when a commit touches the files they watch and then judge what is
+staged rather than what is on disk. The dev container runs it for you.
 
 Then replace what it counts with what your program does. `counting`, `report`
 and the flags in `command_line` are an example of the shape, not a feature.
@@ -71,7 +74,7 @@ and the flags in `command_line` are an example of the shape, not a feature.
 ## How it is laid out
 
 ```
-CMakeLists.txt     what the project is called, what it installs, nothing else
+CMakeLists.txt     the project, what it can be configured with, what it installs
 src/
   CMakeLists.txt   the modules, and what each one is allowed to use
   main.cpp         the only file that is not in a module
@@ -99,7 +102,7 @@ the modules named in its `target_link_libraries`. Reaching for one that is not
 named there does not compile:
 
 ```
-fatal error: 'counting.hpp' file not found
+fatal error: counting.hpp: No such file or directory
 ```
 
 So `src/CMakeLists.txt` is not a list of source files, it is the dependency
@@ -107,26 +110,29 @@ graph, and it is the only place that graph exists. One library over the whole of
 `src/` cannot say this: every header is on every file's include path, and what
 depends on what becomes whatever the code happens to do.
 
-A quoted include is resolved relative to the file that writes it before any
-include path is consulted, so `"../counting/counting.hpp"` reaches past all of
-this and still links. `scripts/check-module-includes.sh` is what refuses it, and
-it runs in the commit hook and in CI.
+An include can name a path rather than a name - `"../counting/counting.hpp"` -
+and reach a header this include path never offered, declaring nothing. Which
+paths are refused and why each one is in `scripts/check-module-includes.sh`,
+which runs in the commit hook and in CI.
 
 **`main()` decides nothing.** It parses, counts, prints and turns the result
 into an exit status. Everything it calls is in a module, because a function in a
 library can be called by a test and a function in `main()` can only be checked
 by starting a process and reading its output. `main.cpp` is the one file no test
-links, and the only place the three modules meet.
+links, and the only place the three modules meet: `command_line` and `report`
+each name `counting` and neither names the other.
 
 **One feature is one module.** Three of them here, and each one does a single
 thing:
 
 | module | does | declares |
 | --- | --- | --- |
-| `command_line` | turns `argv` into an `Outcome` | CLI11, privately - nothing else sees it |
+| `command_line` | turns `argv` into an `Outcome` | `counting`, publicly; CLI11, privately - nothing else sees it |
 | `counting` | counts lines, words and bytes in a stream | nothing |
-| `report` | turns counts into the line that gets printed | the other two, publicly |
+| `report` | turns counts into the line that gets printed | `counting`, publicly |
 
+`counting::Selection` is which of the counts to print: `command_line` fills it
+in and `report::format` reads it, and neither needs the other for that.
 `counting::count` takes a `std::istream` rather than a file name, which is what
 lets its tests pass a `std::istringstream` instead of writing files. CLI11
 appears in exactly one `.cpp` file and in no header, so replacing the argument
@@ -135,7 +141,7 @@ parser is a change to `command_line.cpp` and to
 
 **One test executable per module**, so that the link line is part of the check:
 `mycli_counting_test` links `counting` and nothing else, and the day `counting`
-starts needing a piece of another module, it stops linking. A single test
+starts calling a function of another module, it stops linking. A single test
 program over the whole tree has every module on its link line already, so an
 undeclared dependency resolves and the test passes.
 
@@ -145,8 +151,12 @@ into a test, so `test/e2e/` is what checks that wiring. The directory ships
 anyway, because a level invented under pressure is a level that gets skipped.
 
 To add a feature: `src/thing/thing.hpp` and `src/thing/thing.cpp`,
-`test/unit/thing_test.cpp`, then a target in `src/CMakeLists.txt` saying what
-`thing` may use and one in `test/unit/CMakeLists.txt` linking it.
+`test/unit/thing_test.cpp`, then `mycli_add_module(thing)` in `src/CMakeLists.txt`
+with a `target_link_libraries` saying what `thing` may use, and
+`mycli_add_unit_test(thing)` in `test/unit/CMakeLists.txt`. If `main()` calls it,
+add it to the executable's `target_link_libraries` as well - that line is what
+puts a module on `main.cpp`'s include path. A module with a second source file
+adds it after the call with `target_sources`.
 
 ## What is wired in
 
@@ -225,7 +235,7 @@ git push origin v0.2.0        # this push is the release
 ## Standard
 
 C++23, set per target with `target_compile_features`. Change one line in
-`CMakeLists.txt` to move it.
+`src/CMakeLists.txt` to move it.
 
 A standard is not one thing, and not one thing per compiler either: it is a
 compiler and a standard library, and the two disagree. On Ubuntu 24.04, GCC 13

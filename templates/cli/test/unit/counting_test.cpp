@@ -5,8 +5,9 @@
 
 #include <gtest/gtest.h>
 
-// One header, one implementation, one test file. Adding a feature means adding
-// all three, which is the point: a feature without a test is not finished.
+// A feature is a header, an implementation and this file, plus a line each in
+// src/CMakeLists.txt and test/unit/CMakeLists.txt - and the executable's link
+// line, if main() calls it. A feature without a test is not finished.
 //
 // count() takes a stream, so none of this needs a file on disk.
 

@@ -3,7 +3,6 @@
 #include <cstddef>
 #include <string>
 
-#include "command_line.hpp"
 #include "counting.hpp"
 
 namespace mycli::report {
@@ -20,7 +19,7 @@ void append(std::string& line, std::size_t value)
 
 }  // namespace
 
-auto format(const counting::Counts& counts, const command_line::Options& requested) -> std::string
+auto format(const counting::Counts& counts, const counting::Selection& requested) -> std::string
 {
     std::string line;
     if (requested.lines) {

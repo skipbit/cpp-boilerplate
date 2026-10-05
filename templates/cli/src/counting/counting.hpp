@@ -19,6 +19,18 @@ struct Counts {
     std::size_t bytes = 0;
 };
 
+/// Which of the counts to print. The declared default is every count.
+///
+/// Here, rather than beside whoever fills it in or whoever reads it, because
+/// command_line and report both need it and this is the module they both
+/// already name: a type two modules share belongs under both rather than in
+/// one of them, which would make the other depend on it for a struct.
+struct Selection {
+    bool lines = true;
+    bool words = true;
+    bool bytes = true;
+};
+
 /// Counts lines, whitespace-separated words and bytes in `input`.
 ///
 /// A line is a `\n`; text that does not end in one still counts as a line, the
