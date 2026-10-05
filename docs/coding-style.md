@@ -88,6 +88,28 @@ check keeps its opinion about every other header. It goes inside
 `CheckOptions:`; appended after it, YAML puts it somewhere clang-tidy does not
 read and it silently does nothing.
 
+`readability-trailing-comma` is the other one, and it has two halves. On a list
+written across several lines it asks for a trailing comma after the last
+element, which keeps adding the next element down to one line in the diff. That
+half is on. On a list that fits on one line it asks for the comma to go, and
+there it reads the comma after an empty `{}` as belonging to the empty list:
+
+```cpp
+return {.options = {}, .run = false, .status = status()};
+//                   ^ reported as this list's trailing comma
+```
+
+The fix it offers deletes that comma, which is the separator between two
+designated initializers, and what comes out does not compile:
+
+```
+return {.options = {} .run = false, .status = status()};
+error: expected '}'
+```
+
+`readability-trailing-comma.SingleLineCommaPolicy: 'Ignore'` switches off that
+half and leaves the other one asking.
+
 ### What is switched off, and why
 
 **`bugprone-easily-swappable-parameters`** - fires on any two adjacent
@@ -153,6 +175,11 @@ with them. Cognitive complexity is a second limit with an invisible formula.
 **`readability-identifier-length`** - it demands three characters, and it fired
 on `c` for the character in a loop over characters. A name that says what the
 thing is beats a name that reaches a length.
+
+**`readability-redundant-lambda-parameter-list`** - it asks for the `()` of a
+lambda that takes nothing to be dropped. The parameter list is what makes a
+lambda read as the function it is, and a shape that does not change with the
+number of arguments is easier to read. The `()` stays, empty or not.
 
 ## What the structure enforces
 

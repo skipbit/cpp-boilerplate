@@ -97,7 +97,7 @@ have yet, it is not a starting point. That table is the floor, not the
 environment this is developed in.
 
 A second set of jobs builds in a pinned image (`.devcontainer/Dockerfile`:
-Ubuntu 24.04 with CMake 4.4, GCC 14 and Clang 21), so that a green build means
+Ubuntu 24.04 with CMake 4.4, GCC 14 and Clang 23), so that a green build means
 the code changed rather than the environment. Newer than the floor on purpose -
 the two answer different questions, and only one of them is a requirement. The
 dev container uses the same image.

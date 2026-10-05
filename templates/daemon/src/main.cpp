@@ -14,8 +14,13 @@
 // It does not fork, detach or write a pid file. systemd starts this process,
 // supervises it and stops it, and a process that forks away from its manager
 // only makes itself harder to supervise. See systemd/ and the README.
+//
+// `char* const*` rather than `char**`: nothing here writes through that array,
+// and misc-const-correctness says so. The standard requires an implementation to
+// accept `int main(int, char**)` and leaves any other parameter type to it, and
+// every compiler this project builds with accepts this one.
 
-int main(int argc, char** argv)
+int main(int argc, char* const* argv)
 {
     try {
         const auto parsed = mydaemon::options::parse(argc, argv);

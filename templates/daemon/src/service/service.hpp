@@ -18,7 +18,7 @@ namespace mydaemon::service {
 enum class Wakeup : std::uint8_t {
     Timeout,
     Stop,
-    Reload
+    Reload,
 };
 
 /// Everything the loop needs from outside itself.

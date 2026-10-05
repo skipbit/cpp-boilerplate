@@ -331,10 +331,12 @@ it cannot find. If that is not a claim worth keeping, deleting the job is a
 reasonable answer - nothing else in the workflow depends on it.
 
 There is no SBOM here, unlike the library template. `install(SBOM)` refuses to
-describe a target that links one it cannot attribute, and a dependency fetched
-with `FetchContent` is never installed or exported, so CLI11 cannot be
-attributed. The feature is experimental and this is worth trying again later;
-exporting a dependency nobody consumes to satisfy it is not.
+describe a target that links one it cannot attribute, and this program links
+several: the static libraries its modules are, which exist so the parts can be
+tested and are never installed. CLI11 is a second reason - a dependency fetched
+with `FetchContent` is never installed or exported either. The feature is
+experimental and this is worth trying again later; exporting what nobody
+consumes to satisfy it is not.
 
 ## Documents
 
