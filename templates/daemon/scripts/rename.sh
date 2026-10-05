@@ -6,7 +6,7 @@
 #   ./scripts/rename.sh yourservice --url https://github.com/you/yourservice
 #   ./scripts/rename.sh yourservice --author "Your Name"
 #
-# Covers the namespace, the two targets, the generated version header, the name
+# Covers the namespace, every target, the generated version header, the name
 # the program calls itself in its own messages, and the systemd unit - both the
 # name of its template file and what is written inside it. The uppercase form
 # (CMake options) follows automatically.
@@ -194,7 +194,7 @@ echo "    'Make it yours' is the instructions you have just finished following"
 if [ -z "$homepage" ]; then
     echo "  - put HOMEPAGE_URL back in project() once this has a home to point at"
 fi
-echo "  - replace what the service does: src/task.cpp is an example, not a feature"
+echo "  - replace what the service does: src/task/ is an example, not a feature"
 echo "  - read systemd/${new}.service.in and decide what it is allowed to touch"
 echo "  - delete this script"
 echo "  - cmake --preset debug && cmake --build --preset debug && ctest --preset debug"
