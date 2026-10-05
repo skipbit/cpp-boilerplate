@@ -16,7 +16,8 @@ Warnings, sanitizers, static analysis and a test framework are already wired in,
 and the structure is meant to be kept: public headers declare, `src/` implements,
 one feature means one header, one implementation and one test. In the three
 program templates a module is a directory, a static library and the header named
-after it, so a dependency nobody declared does not compile; and the directory a
+after it, so reaching for one that is not declared does not compile and the
+paths that would get around that are refused by a check; and the directory a
 test sits in says whether it calls one module, several, or the built program.
 
 ## Which one do I want?
