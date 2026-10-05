@@ -379,6 +379,13 @@ jobs:
       - name: Check that every action is pinned to one version
         run: ./scripts/check-workflow-pins.sh
 
+      # Some workflows are one file in ci/ and in .github/workflows/, kept so by
+      # hand. This says when one was edited and the other was not. It is here
+      # and not in the commit hook because .githooks/ is published and the
+      # script is not, so a hook step could never run in a template.
+      - name: Check that the workflows ci/ shares are the same code
+        run: ./scripts/check-workflow-copies.sh
+
       - name: Run clang-tidy as part of the build
         run: |
           docker run --rm -v "$PWD":/src:ro cpp-boilerplate-toolchain:ci bash -euxo pipefail -c '

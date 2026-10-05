@@ -13,7 +13,8 @@ name: dependency freshness
 
 on:
   schedule:
-    - cron: "0 20 * * 1" # Mondays, 20:00 UTC
+    # Mondays, 20:00 UTC
+    - cron: "0 20 * * 1"
   workflow_dispatch:
 
 permissions:
@@ -265,18 +266,30 @@ jobs:
 
           # Quoted, and one match or none: an unquoted search is tokenised, so
           # it answers with whatever issue happens to contain these words, and
-          # what it answers with is edited or closed below.
-          # The title has to be asked for as well as the number, or the filter
-          # compares against a field that is not there and answers none.
-          matches=$(gh issue list --state open --search "\"$title\" in:title" \
-            --json number,title --jq '[.[] | select(.title == "'"$title"'")] | length')
-          existing=""
+          # what it answers with is edited or closed below. The title goes in
+          # through the environment, so it stays a title rather than becoming
+          # part of the filter, and it is asked for alongside the number because
+          # the filter compares against it. Assigned and then read, so that a
+          # search which failed fails the step instead of arriving as a blank.
+          #
+          # --limit, because the default is 30 and a title search is a phrase
+          # search: the issue with this exact title can sit past the first page.
+          found=$(TITLE="$title" gh issue list --state open --limit 100 \
+            --search "\"$title\" in:title" --json number,title \
+            --jq '[.[] | select(.title == env.TITLE)] | "\(length) \(.[0].number // "")"')
+          read -r matches existing <<< "$found"
+
+          # An empty count is a false condition rather than an error to `[ -gt ]`,
+          # and what follows would open a second issue over the one already open.
+          case "$matches" in
+            '' | *[!0-9]*)
+              echo "::error::the search answered with no count; see the step log"
+              exit 1
+              ;;
+          esac
           if [ "$matches" -gt 1 ]; then
             echo "::error::${matches} open issues have this title; not touching any of them"
             exit 1
-          elif [ "$matches" -eq 1 ]; then
-            existing=$(gh issue list --state open --search "\"$title\" in:title" \
-              --json number,title --jq '[.[] | select(.title == "'"$title"'")][0].number')
           fi
 
           # Pins that caught up close the issue, so an open one means something
@@ -292,7 +305,7 @@ jobs:
           fi
 
           # \n\n: the list ends without a newline of its own.
-          body=$(printf 'These pins are behind what is currently published.\n\n%s\n\nThis issue is updated by the dependency-freshness workflow, which watches the pins this project was started with, and closes when they catch up. It is not a to-do list with a deadline, and being behind is not the same as being broken.\n' "$STALE")
+          body=$(printf 'These pins are behind what is currently published.\n\n%s\n\nThis issue is updated by the dependency-freshness workflow, which watches the pins written into this project and not the ones a dependency bot reads, and closes when they catch up. It is not a to-do list with a deadline, and being behind is not the same as being broken.\n' "$STALE")
 
           if [ -n "$existing" ]; then
             gh issue edit "$existing" --body "$body"
