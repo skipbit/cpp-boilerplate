@@ -17,8 +17,9 @@ and the structure is meant to be kept: public headers declare, `src/` implements
 one feature means one header, one implementation and one test. In the three
 program templates a module is a directory, a static library and the header named
 after it, so reaching for one that is not declared does not compile and the
-paths that would get around that are refused by a check; and the directory a
-test sits in says whether it calls one module, several, or the built program.
+paths that would get around that are refused by a check. In all four, the
+directory a test sits in says whether it calls one piece, several, or the thing
+the project ships.
 
 ## Which one do I want?
 
@@ -71,8 +72,10 @@ does - see [CONTRIBUTING.md](CONTRIBUTING.md).
   that passes its own tests can still be impossible to consume.
 - **An SBOM** in SPDX 3.0.1, off by default. See below.
 - **Hooks** that run clang-format, clang-tidy, actionlint, hadolint and
-  shellcheck on the files in a commit: `./scripts/install-hooks.sh`. Anything not installed is
-  skipped rather than treated as a failure.
+  shellcheck on the files in a commit - anything not installed is skipped rather
+  than treated as a failure - and `check-module-includes` and
+  `check-tidy-rationale`, which ship with the template and run when a commit
+  touches the files they watch: `./scripts/install-hooks.sh`.
 - **A release path**: a `vX.Y.Z` tag builds, tests, and publishes a GitHub
   release. `scripts/release.sh` refuses to make a tag that disagrees with
   `project(VERSION)`.

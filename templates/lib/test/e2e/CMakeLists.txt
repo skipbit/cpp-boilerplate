@@ -24,7 +24,11 @@ add_test(
     NAME mylib.install-consume
     COMMAND "${CMAKE_COMMAND}"
             -D "SOURCE_DIR=${CMAKE_CURRENT_LIST_DIR}/install-consume"
-            -D "LIBRARY_BUILD_DIR=${CMAKE_BINARY_DIR}"
+            # PROJECT_BINARY_DIR, not CMAKE_BINARY_DIR: in the monorepo that
+            # builds every template, the top of the tree installs all four, so a
+            # broken install rule in another one would turn this test red and
+            # name mylib.
+            -D "LIBRARY_BUILD_DIR=${PROJECT_BINARY_DIR}"
             -D "WORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/install-consume"
             -D "GENERATOR=${CMAKE_GENERATOR}"
             -D "BUILD_TYPE=$<CONFIG>"
@@ -33,3 +37,9 @@ add_test(
             -D "CXX_FLAGS=${CMAKE_CXX_FLAGS} ${mylib_sanitizer_flags}"
             -D "LINKER_FLAGS=${mylib_sanitizer_flags}"
             -P "${CMAKE_CURRENT_LIST_DIR}/run-install-consume.cmake")
+
+# add_test expands the paths and checks nothing. In a build directory where only
+# a test was built, the install step would fail on a library that was never
+# built; REQUIRED_FILES makes ctest say NOT RUN instead.
+set_tests_properties(mylib.install-consume PROPERTIES
+    REQUIRED_FILES "$<TARGET_FILE:mylib>")

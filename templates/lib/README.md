@@ -61,8 +61,9 @@ The second points git at `.githooks/`, which runs clang-format, clang-tidy,
 actionlint, hadolint and shellcheck on the files in a commit - anything not
 installed is skipped rather than treated as a failure - and two checks that
 ship with the template, `check-module-includes` and `check-tidy-rationale`,
-which run when a commit touches the files they watch and then judge what is
-staged rather than what is on disk. The dev container runs it for you.
+which run when a commit touches the files they watch. The first judges what is
+staged and the second reads the files as they are on disk. The dev container
+runs it for you.
 
 ## How it is laid out
 
@@ -71,7 +72,7 @@ include/mylib/     public headers - declarations only
 src/               implementation, plus headers nobody else can include
 test/
   unit/            one public header, called directly
-  integration/     more than one, used together
+  integration/     more than one of them, used together
   e2e/             the installed package, found with find_package and linked
 examples/          programs a reader can run
 cmake/             package config, pkg-config and version templates
@@ -87,17 +88,27 @@ that everything depends on.
 **Public headers declare; `src/` implements.** Anything under `src/` is never
 installed, so changing it is never a breaking change for anyone.
 
+An include names a header by the name its include path gives it. A path rather
+than a name - `"../src/detail/character.hpp"` from a test, say - reaches a
+header that include path never offered. Which paths are refused and why each one
+is in `scripts/check-module-includes.sh`, which runs in the commit hook and in
+CI.
+
 **One test executable per public header**, so that a failure names the header it
-came from. They all link `mylib::mylib`, because one library is what this
-project publishes; the directory a test sits in is what says which level it is,
-and `test/integration/` ships empty because there is one feature here and
-nothing yet to combine it with. The directory is there anyway: a level invented under pressure is a
-level that gets skipped.
+came from: `mylib_add_unit_test(text)` in `test/unit/CMakeLists.txt` is the whole
+of one, and `ctest` says `text.Squeeze.TrimsBothEnds`. They all link
+`mylib::mylib`, because one library is what this project publishes, so the link
+line says nothing and the name carries the header instead.
+
+The directory a test sits in says which level it is. `test/integration/` ships
+empty, because there is one feature here and nothing yet to combine it with; the
+directory is there anyway, because a level invented under pressure is a level
+that gets skipped.
 
 To add a feature: `include/mylib/thing.hpp` for the declarations, `src/thing.cpp`
-for the code, `test/unit/thing_test.cpp` for the tests, and add the header and
-source to `target_sources` in `CMakeLists.txt` and the test to
-`test/unit/CMakeLists.txt`.
+for the code, `test/unit/thing_test.cpp` for the tests, then the header and the
+source in `target_sources` in `CMakeLists.txt` and `mylib_add_unit_test(thing)`
+in `test/unit/CMakeLists.txt`.
 
 ## What is wired in
 

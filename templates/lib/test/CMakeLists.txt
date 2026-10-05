@@ -1,7 +1,7 @@
 # Three levels, and the directory a test sits in is what says which one it is:
 #
 #   unit/         one public header, called directly
-#   integration/  more than one, used together
+#   integration/  more than one of the public headers, used together
 #   e2e/          the installed package, found with find_package and linked
 #
 # The split is not filing. A failing unit test names the function that is wrong;
