@@ -11,8 +11,13 @@
 // answers into an exit status, which is the one job that cannot live anywhere
 // else. Everything above it is in a library, because a function in a library
 // can be tested and a function in main() cannot.
+//
+// `char* const*` rather than `char**`: nothing here writes through that array,
+// and misc-const-correctness says so. The standard requires an implementation to
+// accept `int main(int, char**)` and leaves any other parameter type to it, and
+// every compiler this project builds with accepts this one.
 
-int main(int argc, char** argv)
+int main(int argc, char* const* argv)
 {
     try {
         const auto parsed = mycli::command_line::parse(argc, argv);

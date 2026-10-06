@@ -30,8 +30,8 @@ FROM ubuntu:24.04
 # footgun: a silently mismatched archive would install packages built for another
 # release.
 ARG UBUNTU_CODENAME=noble
-ARG CMAKE_VERSION=4.4.2-0kitware1ubuntu24.04.1
-ARG CLANG_VERSION=21
+ARG CMAKE_VERSION=4.4.3-0kitware1ubuntu24.04.1
+ARG CLANG_VERSION=23
 ARG GCC_VERSION=14
 # No Debian package, so these are release binaries rather than apt pins.
 ARG ACTIONLINT_VERSION=1.7.12

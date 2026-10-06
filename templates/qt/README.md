@@ -354,7 +354,7 @@ job is a reasonable answer - nothing else in the workflow depends on it.
 There is no SBOM here, for the reason the command line and service templates
 have none. `install(SBOM)` refuses a target that references one it cannot
 attribute, and this program links static libraries that exist for its tests and
-are never installed. Measured with CMake 4.4.2:
+are never installed. Measured with CMake 4.4.3:
 
 ```
 Target "myapp" references target "myapp_ui" which has no

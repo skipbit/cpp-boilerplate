@@ -44,7 +44,8 @@ Checks: >
   -modernize-use-trailing-return-type,
   -portability-avoid-pragma-once,
   -readability-function-cognitive-complexity,
-  -readability-identifier-length
+  -readability-identifier-length,
+  -readability-redundant-lambda-parameter-list
 
 WarningsAsErrors: '*'
 
@@ -126,6 +127,15 @@ CheckOptions:
     value: '4'
   - key: readability-function-size.VariableThreshold
     value: '20'
+
+  # readability-trailing-comma has two halves. On a multi-line list it asks for
+  # a trailing comma, which is the answer this project gave. On a single-line one
+  # it asks for the comma to go, and reads the comma after an empty `{}` as that
+  # list's own: the fix it offers deletes the separator and the code stops
+  # compiling. Ignore switches off that half and keeps the other.
+  # docs/coding-style.md has the measurement.
+  - key: readability-trailing-comma.SingleLineCommaPolicy
+    value: 'Ignore'
 
   # Bugprone options
   - key: bugprone-argument-comment.StrictMode

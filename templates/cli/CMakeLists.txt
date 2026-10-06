@@ -56,12 +56,13 @@ endif()
 # find_package() - it is found on PATH.
 #
 # There is no SBOM either, which is a limitation rather than a decision. CMake's
-# install(SBOM) refuses to describe a target that links one it cannot attribute,
-# and a dependency brought in by FetchContent is never installed or exported, so
-# it can never be attributed. Measured with CMake 4.4.2: the generate step fails
-# with "references target CLI11 which has no install(EXPORT)/export(EXPORT)
-# namespace and is not covered by any SBOM". The feature is experimental; this
-# is a thing to try again rather than to work around by exporting a dependency
-# nobody consumes.
+# install(SBOM) refuses to describe a target that links one it cannot attribute.
+# This program links the three static libraries its modules are, which exist so
+# the parts can be tested and are never installed, and CLI11 arrives through
+# FetchContent, which installs and exports nothing. Measured with CMake 4.4.3,
+# once per module: "references target mycli_command_line which has no
+# install(EXPORT)/export(EXPORT) namespace and is not covered by any SBOM". The
+# feature is experimental; this is a thing to try again rather than to work
+# around by exporting what nobody consumes.
 install(TARGETS mycli
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" COMPONENT mycli_runtime)
