@@ -135,7 +135,7 @@ unlocks it can change between CMake releases. CI exercises this path on every
 change, so a changed key shows up as a failing job rather than a document that
 silently stopped being written. The application templates install none and
 quote the message that refuses them; `scripts/check-sbom-refusal.sh` measures
-that refusal in the same jobs.
+that refusal, with the version the comment names, in the same jobs.
 
 ## Documents
 

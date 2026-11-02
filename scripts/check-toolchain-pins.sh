@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 #
 # Every .devcontainer/Dockerfile in this repository has to pin the same
-# toolchain, and to carry the same archive signing keys beside it. Every comment
-# that names the CMake version something was measured with names the pinned one.
+# toolchain, and to carry the same archive signing keys beside it.
 #
 #   ./scripts/check-toolchain-pins.sh
 #
@@ -98,31 +97,6 @@ for file in "${copies[@]}"; do
     done < <(git ls-files -- "${dir}/*-keyring.asc" | sort)
 done
 
-pinned_cmake=$(grep -oP '^ARG CMAKE_VERSION=\K[0-9]+\.[0-9]+\.[0-9]+' "$shared" | head -1)
-[ -n "$pinned_cmake" ] \
-    || { echo "error: ${shared} pins no ARG CMAKE_VERSION with a version in it" >&2; exit 1; }
-
-measured=()
-while IFS= read -r line; do
-    measured+=("$line")
-done < <(git grep -niE 'measured with cmake [0-9]+\.[0-9]+\.[0-9]+' -- . || true)
-
-# Matching nothing is a failure, not a pass.
-if [ ${#measured[@]} -eq 0 ]; then
-    echo "error: nothing names a CMake version it was measured with; this would have passed by finding nothing to read" >&2
-    exit 1
-fi
-
-stale=()
-for line in "${measured[@]}"; do
-    where=$(printf '%s' "$line" | cut -d: -f1,2)
-    while IFS= read -r version; do
-        [ "$version" = "$pinned_cmake" ] || stale+=("${where} names CMake ${version}")
-    done < <(printf '%s' "$line" | grep -oiP 'measured with cmake \K[0-9]+\.[0-9]+\.[0-9]+')
-done
-
-failed=0
-
 if [ ${#differing[@]} -gt 0 ]; then
     echo >&2
     echo "error: these disagree with what ${shared} pins and verifies:" >&2
@@ -131,22 +105,8 @@ if [ ${#differing[@]} -gt 0 ]; then
     echo "Bump or copy them together, or say in ${shared} why one of them is" >&2
     echo "deliberately behind. A copy nobody compares is a copy that stops being" >&2
     echo "one." >&2
-    failed=1
+    exit 1
 fi
-
-if [ ${#stale[@]} -gt 0 ]; then
-    echo >&2
-    echo "error: these name a CMake version ${shared} no longer pins (${pinned_cmake}):" >&2
-    printf '  %s\n' "${stale[@]}" >&2
-    echo >&2
-    echo "Measure them again with the pinned version; scripts/check-sbom-refusal.sh" >&2
-    echo "is what re-measures the install(SBOM) refusals." >&2
-    failed=1
-fi
-
-[ "$failed" -eq 0 ] || exit 1
 
 echo "These agree with ${shared} and the ${#keys[@]} keys beside it:"
 printf '  %s\n' "${copies[@]}"
-echo "These were measured with the pinned CMake ${pinned_cmake}:"
-printf '%s\n' "${measured[@]%%:*}" | sort -u | sed 's/^/  /'

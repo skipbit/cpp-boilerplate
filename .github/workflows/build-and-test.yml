@@ -161,8 +161,7 @@ jobs:
         run: |
           docker run --rm -v "$PWD":/src:ro cpp-boilerplate-toolchain:ci bash -euxo pipefail -c '
             cd /src
-            ./scripts/check-sbom-refusal.sh templates/cli
-            ./scripts/check-sbom-refusal.sh templates/daemon
+            ./scripts/check-sbom-refusal.sh templates/cli templates/daemon
           '
 
   # Everything above leaves BUILD_SHARED_LIBS at its default, which is OFF.
@@ -388,7 +387,7 @@ jobs:
 
       # A template that needs a system library ships its own image, which means
       # a second copy of the pinned toolchain. This is what keeps the copy one.
-      - name: Check that every image pins the same toolchain, and the measurements name it
+      - name: Check that every image pins the same toolchain
         run: ./scripts/check-toolchain-pins.sh
 
       # Dependabot reads .github/workflows and not ci/, so a bump it proposes
