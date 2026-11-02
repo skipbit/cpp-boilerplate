@@ -155,6 +155,19 @@ jobs:
             test -s /tmp/prefix/lib/sbom/mylib/mylib.spdx.json
           '
 
+      # The step above proves one template writes a document. The application
+      # templates install none, and each one says why by quoting the message
+      # install(SBOM) refuses it with - a sentence one release answers with, and
+      # the only thing in those comments nobody else reads. This measures it
+      # again. The qt template is checked in the job that has Qt.
+      - name: Check that install(SBOM) refuses what the comments quote
+        run: |
+          docker run --rm -v "$PWD":/src:ro cpp-boilerplate-toolchain:ci bash -euxo pipefail -c '
+            cd /src
+            ./scripts/check-sbom-refusal.sh templates/cli
+            ./scripts/check-sbom-refusal.sh templates/daemon
+          '
+
   # Everything above leaves BUILD_SHARED_LIBS at its default, which is OFF.
   # Nothing built shared, and shared is the configuration the library template
   # is written for: the export header, the hidden visibility and the SOVERSION
@@ -335,6 +348,13 @@ jobs:
             cmake --build /tmp/tidy
           '
 
+      - name: Check that install(SBOM) refuses what the comment quotes
+        run: |
+          docker run --rm -v "$PWD":/src:ro qt-toolchain:ci bash -euxo pipefail -c '
+            cd /src
+            ./scripts/check-sbom-refusal.sh templates/qt
+          '
+
   static-analysis:
     name: every linter, in the pinned image
     runs-on: ubuntu-24.04
@@ -370,8 +390,9 @@ jobs:
         run: ./scripts/check-module-includes.sh
 
       # A template that needs a system library ships its own image, which means
-      # a second copy of the pinned toolchain. This is what keeps the copy one.
-      - name: Check that every image pins the same toolchain
+      # a second copy of the pinned toolchain. This is what keeps the copy one,
+      # and what holds the comments that name a measured CMake version to it.
+      - name: Check that every image pins the same toolchain, and the measurements name it
         run: ./scripts/check-toolchain-pins.sh
 
       # Dependabot reads .github/workflows and not ci/, so a bump it proposes
