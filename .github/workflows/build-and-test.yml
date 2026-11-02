@@ -155,11 +155,8 @@ jobs:
             test -s /tmp/prefix/lib/sbom/mylib/mylib.spdx.json
           '
 
-      # The step above proves one template writes a document. The application
-      # templates install none, and each one says why by quoting the message
-      # install(SBOM) refuses it with - a sentence one release answers with, and
-      # the only thing in those comments nobody else reads. This measures it
-      # again. The qt template is checked in the job that has Qt.
+      # The step above writes a document. These templates install none and quote
+      # what refuses them; the qt template is checked in the job that has Qt.
       - name: Check that install(SBOM) refuses what the comments quote
         run: |
           docker run --rm -v "$PWD":/src:ro cpp-boilerplate-toolchain:ci bash -euxo pipefail -c '
@@ -390,8 +387,7 @@ jobs:
         run: ./scripts/check-module-includes.sh
 
       # A template that needs a system library ships its own image, which means
-      # a second copy of the pinned toolchain. This is what keeps the copy one,
-      # and what holds the comments that name a measured CMake version to it.
+      # a second copy of the pinned toolchain. This is what keeps the copy one.
       - name: Check that every image pins the same toolchain, and the measurements name it
         run: ./scripts/check-toolchain-pins.sh
 

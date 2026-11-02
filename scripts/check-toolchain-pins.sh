@@ -2,8 +2,7 @@
 #
 # Every .devcontainer/Dockerfile in this repository has to pin the same
 # toolchain, and to carry the same archive signing keys beside it. Every comment
-# that names the CMake version something was measured with has to name the
-# pinned one.
+# that names the CMake version something was measured with names the pinned one.
 #
 #   ./scripts/check-toolchain-pins.sh
 #
@@ -17,11 +16,6 @@
 # The keys are part of that copy. They are what apt verifies the pinned packages
 # against, so one left behind is an archive that stops being readable on the day
 # it is replaced upstream.
-#
-# A measurement carries the version it was made with: the application templates
-# quote what install(SBOM) refuses them with, and that sentence is one release's
-# answer. A pin moved on its own leaves them naming a release nobody looked at,
-# which reads like a measurement and is not one.
 #
 # This is a monorepo check. It is not shipped with a template, because a
 # published template has exactly one of these files and nothing to compare.
@@ -113,8 +107,7 @@ while IFS= read -r line; do
     measured+=("$line")
 done < <(git grep -niE 'measured with cmake [0-9]+\.[0-9]+\.[0-9]+' -- . || true)
 
-# Matching nothing is a failure, not a pass: a check with nothing to read
-# reports success for a repository that stopped saying what it measured.
+# Matching nothing is a failure, not a pass.
 if [ ${#measured[@]} -eq 0 ]; then
     echo "error: nothing names a CMake version it was measured with; this would have passed by finding nothing to read" >&2
     exit 1
@@ -128,7 +121,6 @@ for line in "${measured[@]}"; do
     done < <(printf '%s' "$line" | grep -oiP 'measured with cmake \K[0-9]+\.[0-9]+\.[0-9]+')
 done
 
-# Both answers are reported, so that one of them does not hide the other.
 failed=0
 
 if [ ${#differing[@]} -gt 0 ]; then
@@ -147,9 +139,8 @@ if [ ${#stale[@]} -gt 0 ]; then
     echo "error: these name a CMake version ${shared} no longer pins (${pinned_cmake}):" >&2
     printf '  %s\n' "${stale[@]}" >&2
     echo >&2
-    echo "Measure them again with the pinned version and write down what it answers." >&2
-    echo "scripts/check-sbom-refusal.sh measures the install(SBOM) refusals the" >&2
-    echo "application templates quote." >&2
+    echo "Measure them again with the pinned version; scripts/check-sbom-refusal.sh" >&2
+    echo "is what re-measures the install(SBOM) refusals." >&2
     failed=1
 fi
 
