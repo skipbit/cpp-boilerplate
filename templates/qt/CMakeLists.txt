@@ -159,7 +159,8 @@ endif()
 # No SBOM either. install(SBOM) refuses a target that references one it cannot
 # attribute, and the modules above and the QML module are never installed -
 # measured with CMake 4.4.5: "references target myapp_ui which has no
-# install(EXPORT)". The same limitation the other application templates have.
+# install(EXPORT)/export(EXPORT) namespace and is not covered by any SBOM". The
+# same limitation the other application templates have.
 install(TARGETS myapp
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" COMPONENT myapp_runtime)
 
