@@ -59,7 +59,7 @@ endif()
 # install(SBOM) refuses to describe a target that links one it cannot attribute.
 # This program links the three static libraries its modules are, which exist so
 # the parts can be tested and are never installed, and CLI11 arrives through
-# FetchContent, which installs and exports nothing. Measured with CMake 4.4.3,
+# FetchContent, which installs and exports nothing. Measured with CMake 4.4.5,
 # once per module: "references target mycli_command_line which has no
 # install(EXPORT)/export(EXPORT) namespace and is not covered by any SBOM". The
 # feature is experimental; this is a thing to try again rather than to work
