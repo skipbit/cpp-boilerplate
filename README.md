@@ -133,7 +133,9 @@ It is off by default because it needs CMake 4.3 or newer, which no current
 Ubuntu LTS ships, and because the feature is still experimental: the key that
 unlocks it can change between CMake releases. CI exercises this path on every
 change, so a changed key shows up as a failing job rather than a document that
-silently stopped being written.
+silently stopped being written. The application templates install none and
+quote the message that refuses them; `scripts/check-sbom-refusal.sh` measures
+that refusal, with the version the comment names, in the same jobs.
 
 ## Documents
 
